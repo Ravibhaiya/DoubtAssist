@@ -1,50 +1,77 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to fetch a short news article and generate comprehension questions.
+ * @fileOverview A Genkit flow to fetch a short news article using a tool and generate comprehension questions.
  *
  * - getNewsAndQuestions - Fetches a news summary and questions.
- * - GetNewsAndQuestionsInput - Input type (currently empty).
- * - GetNewsAndQuestionsOutput - Output type: { article: string, articleDate: string, questions: string[] }.
+ * - GetNewsAndQuestionsInput - Input type { sourceHint: string (optional) }.
+ * - GetNewsAndQuestionsOutput - Output type: { article: string, articleDate: string, questions: string[], articleUrl?: string, articleSource?: string }.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { fetchNewsArticleTool, NewsArticleSchema, type NewsArticle } from '@/ai/tools/newsTool'; // Import the tool and its types
 
 const GetNewsAndQuestionsInputSchema = z.object({
-  sourceHint: z.string().optional().describe("Optional hint for the news source, e.g., 'The Hindu' or 'Times of India'"),
+  sourceHint: z.string().optional().describe("Optional hint for the news source, e.g., 'The Hindu' or 'Times of India'. This will be used to prefer sources in the news fetching tool."),
 });
 export type GetNewsAndQuestionsInput = z.infer<typeof GetNewsAndQuestionsInputSchema>;
 
 const GetNewsAndQuestionsOutputSchema = z.object({
-  article: z.string().describe('A summarized news article in English, approximately 100-200 words long. If no article meeting the date criteria can be found, this field should state that.'),
+  article: z.string().describe('A summarized news article in English, approximately 100-200 words long. If no article can be found or summarized, this field should state that.'),
   articleDate: z.string().describe('The publication date of the news article (e.g., "YYYY-MM-DD" or "Month DD, YYYY"). If no article is found, this can be "N/A".'),
   questions: z.array(z.string()).min(1).max(2).describe('An array of 1 to 2 comprehension questions based on the article. If no article, this might contain a general follow-up question.'),
+  articleUrl: z.string().url().optional().describe("The URL of the original news article, if available."),
+  articleSource: z.string().optional().describe("The source of the news article, if available."),
 });
 export type GetNewsAndQuestionsOutput = z.infer<typeof GetNewsAndQuestionsOutputSchema>;
 
+// This prompt now takes the direct output from the newsTool
 const newsPrompt = ai.definePrompt({
-  name: 'newsComprehensionPrompt',
-  input: {schema: GetNewsAndQuestionsInputSchema},
-  output: {schema: GetNewsAndQuestionsOutputSchema},
-  prompt: `You are an AI assistant helping a user with reading comprehension.
-Your task is to provide a news article summary about **current events**, its publication date, and then ask comprehension questions about it.
+  name: 'newsComprehensionPromptWithTool',
+  input: { schema: z.object({ toolOutput: NewsArticleSchema.nullable(), originalInput: GetNewsAndQuestionsInputSchema }) },
+  output: { schema: GetNewsAndQuestionsOutputSchema },
+  // The tool itself is called by the flow, not directly by this prompt's LLM call.
+  // However, listing it here can sometimes help the model understand the context if it were to also be given tool-calling capabilities.
+  // For this specific flow structure, it's not strictly necessary for the prompt to list the tool, as the flow orchestrates the tool call.
+  // tools: [fetchNewsArticleTool], 
+  prompt: `
+You have been provided with structured data for a news article fetched by a dedicated news tool.
+Your goal is to prepare this article for a reading comprehension exercise.
 
-**CRITICAL DATE REQUIREMENT:**
-1. The news article summary MUST be about events that occurred on **today** (the exact current calendar date of this request) or, if no suitable article detailing events from today is found, from **yesterday** (the calendar day immediately preceding today).
-2. **DO NOT provide articles older than yesterday.** For example, if the current date is June 9, 2025, you must provide an article from June 9, 2025, or June 8, 2025.
-3. **If you absolutely cannot find a relevant article from today or yesterday from any reputable source, you MUST explicitly state in the 'article' field that you were unable to find an article meeting the strict date criteria, instead of providing an older article.** In this case, set 'articleDate' to "N/A".
-
-Further Instructions:
-4. The article should ideally be from a reputable Indian English newspaper (like The Hindu or Times of India if possible, but prioritize recency from any reputable source if a specific Indian source doesn't have an article matching the strict date criteria).
-5. Aim to provide a different article than one you might have provided recently, covering diverse topics if possible while adhering to the date constraint.
-6. The article summary must be in English and be between 100 and 200 words.
-7. Determine and provide the **publication date** of the article. Format it clearly (e.g., "YYYY-MM-DD" or "Month DD, YYYY"). This date MUST match the "today" or "yesterday" requirement, unless you are stating that no such article was found.
-8. After providing the article and its date (or stating inability to find one), generate 1 or 2 clear comprehension questions. If no article was found, the questions can be more general, like "Would you like me to try searching for news on a different topic or from a broader timeframe?"
-{{#if sourceHint}}
-Consider news related to topics typically covered by {{sourceHint}}, but only if it meets the strict date criteria.
+News Article Data:
+{{#if toolOutput}}
+  Title: {{{toolOutput.title}}}
+  Source: {{{toolOutput.sourceName}}}
+  Published At (ISO 8601): {{{toolOutput.publishedAt}}}
+  URL: {{{toolOutput.url}}}
+  Description Snippet: {{{toolOutput.description}}}
+  Full Content (may be truncated by API, often around 200-260 chars): {{{toolOutput.content}}}
+{{else}}
+  The news fetching tool did not find a suitable article.
 {{/if}}
-Ensure your output is in the specified JSON format, including the articleDate matching the critical date requirement (or "N/A" if no suitable article found).
+
+Your tasks are:
+1.  **Process Article Data (if available):**
+    {{#if toolOutput}}
+    a.  Using the 'Full Content' (if substantial) or the 'Description Snippet' from the tool's output, create a concise summary of the news article. This summary MUST be in English and be between 100 and 200 words. This will be the 'article' field in your JSON output.
+    b.  The 'articleDate' field in your JSON output MUST be the 'Published At' date from the tool output. Format it as "YYYY-MM-DD" (e.g., if "2024-07-15T10:30:00Z", use "2024-07-15").
+    c.  The 'articleUrl' field should be the 'URL' from the tool output.
+    d.  The 'articleSource' field should be the 'Source' (sourceName) from the tool output.
+    e.  Based *only* on the summary you created, generate 1 or 2 clear comprehension questions. These questions should test understanding of the main points of your summary.
+    {{else}}
+    a.  Since no article was found by the tool, set the 'article' field in your JSON output to a polite message stating that an article could not be fetched (e.g., "I was unable to retrieve a news article at this time. The news service might be temporarily unavailable or no recent articles matched the criteria. Please try again later.").
+    b.  Set 'articleDate' to "N/A".
+    c.  Set 'articleUrl' and 'articleSource' to undefined or null.
+    d.  Set 'questions' to an array containing a single, general follow-up question, such as "Would you like me to try fetching news again?".
+    {{/if}}
+
+2.  **Output Format:** Ensure your entire response is a single JSON object matching the GetNewsAndQuestionsOutputSchema.
+
+Example of 'Published At' to 'articleDate' conversion:
+If 'Published At' is "2024-07-15T10:30:00Z", your 'articleDate' should be "2024-07-15".
+
+Focus on using the provided text ('Full Content' or 'Description Snippet') for summarization. Do not invent details.
 `,
 });
 
@@ -54,18 +81,51 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
     inputSchema: GetNewsAndQuestionsInputSchema,
     outputSchema: GetNewsAndQuestionsOutputSchema,
   },
-  async (input) => {
-    const {output} = await newsPrompt(input);
-    if (!output) {
-      throw new Error('Failed to generate news and questions.');
+  async (flowInput: GetNewsAndQuestionsInput): Promise<GetNewsAndQuestionsOutput> => {
+    const preferredSources: string[] = [];
+    let query = 'India current events'; // Default query
+
+    if (flowInput.sourceHint) {
+      const hintLower = flowInput.sourceHint.toLowerCase();
+      if (hintLower.includes('hindu')) preferredSources.push('the-hindu');
+      if (hintLower.includes('times of india')) preferredSources.push('the-times-of-india');
+      // If a specific source hint is provided, we might want to adjust the general query
+      // or assume the source hint itself implies the query topic.
+      // For now, if specific sources are hinted, we'll use them.
+      // If the source hint is more like a keyword, it could be part of the query.
+      // Let's assume for now sourceHint helps pick a source, query remains general unless sourceHint IS the query.
     }
-    // Ensure there's at least one question, even if LLM fails to provide an array or an article
+
+    // Call the news fetching tool
+    const articleData = await fetchNewsArticleTool({
+      query: query, // We can refine this to use sourceHint as query if appropriate
+      preferredSources: preferredSources.length > 0 ? preferredSources : undefined,
+    });
+
+    // Pass the tool's output to the LLM for summarization and question generation
+    const { output } = await newsPrompt({ toolOutput: articleData, originalInput: flowInput });
+
+    if (!output) {
+      console.error('Failed to generate news and questions after processing tool output.');
+      // Provide a fallback response that matches the schema
+      return {
+        article: "I encountered an issue while trying to prepare the news article. Please try again.",
+        articleDate: "N/A",
+        questions: ["Would you like to try fetching news again?"],
+        articleUrl: undefined,
+        articleSource: undefined,
+      };
+    }
+
+    // Ensure there's at least one question, even if the LLM fails to provide an array or an article
     if (!output.questions || output.questions.length === 0) {
       return {
-        article: output.article || "I couldn't fetch an article right now. Please try again later.",
-        articleDate: output.articleDate || "Date not available",
-        questions: ["What would you like to do next?"], // More generic fallback
-      }
+        article: output.article || "I couldn't fetch an article right now using the news service. Please try again later.",
+        articleDate: output.articleDate || "N/A",
+        questions: ["What would you like to do next?"],
+        articleUrl: output.articleUrl,
+        articleSource: output.articleSource,
+      };
     }
     return output;
   }
