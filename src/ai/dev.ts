@@ -4,3 +4,5 @@ import './flows/readingComprehensionFlow';
 import './flows/evaluateAnswerFlow';
 import './flows/answerArticleQueryFlow';
 import './flows/explainTextFlow';
+import './flows/startConversationFlow';
+import './flows/continueConversationFlow';

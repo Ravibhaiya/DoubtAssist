@@ -4,8 +4,8 @@ import { BottomNavigationBar } from '@/components/layout/bottom-navigation-bar';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'DoubtAssist',
-  description: 'Your personal AI assistant for doubts.',
+  title: 'DoubtAssist & Conversation Practice',
+  description: 'Your personal AI assistant for doubts and English conversation practice.',
 };
 
 export default function RootLayout({
