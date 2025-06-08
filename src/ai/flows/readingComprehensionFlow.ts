@@ -30,7 +30,7 @@ const newsPrompt = ai.definePrompt({
 Your task is to provide a very recent news article summary and then ask comprehension questions about it.
 
 Instructions:
-1. Find a concise summary of a general interest news article from a reputable Indian English newspaper (like The Hindu or Times of India if possible, based on your training data for recent events).
+1. Find a concise summary of a **very recent** (ideally from today or yesterday) general interest news article from a reputable Indian English newspaper (like The Hindu or Times of India if possible, based on your training data for the latest events). Try to provide a different article than one you might have provided recently if possible, covering diverse topics.
 2. The article summary must be in English and be between 100 and 200 words.
 3. After providing the article, generate 1 or 2 clear comprehension questions that can be answered based *only* on the information present in the summarized article.
 {{#if sourceHint}}

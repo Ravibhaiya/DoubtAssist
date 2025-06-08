@@ -21,7 +21,7 @@ export type EvaluateUserAnswerInput = z.infer<typeof EvaluateUserAnswerInputSche
 const EvaluateUserAnswerOutputSchema = z.object({
   isCorrect: z.boolean().describe("Whether the user's answer is substantially correct based *only* on the provided article text."),
   feedback: z.string().describe("A brief explanation for why the answer is correct or incorrect, referencing the article's content."),
-  grammarFeedback: z.string().describe("Brief, constructive feedback on the user's grammar in their answer. If grammar is perfect, say so."),
+  grammarFeedback: z.string().describe("Brief, constructive feedback on the user's grammar. If grammar is incorrect, explain *why* it's incorrect (e.g., subject-verb agreement, tense error, incorrect preposition) and suggest a correction. If grammar is perfect, say so."),
 });
 export type EvaluateUserAnswerOutput = z.infer<typeof EvaluateUserAnswerOutputSchema>;
 
@@ -35,7 +35,7 @@ You have been provided with a news article, a question about that article, and a
 Your tasks are:
 1. Evaluate if the user's answer is correct. The answer must be based *solely* on the information explicitly or implicitly available in the provided article text. Do not use external knowledge.
 2. Provide a brief explanation for your evaluation (why it's correct or incorrect).
-3. Provide brief, constructive feedback on the user's grammar in their answer. If grammar is excellent, acknowledge it.
+3. Provide brief, constructive feedback on the user's grammar in their answer. If the grammar is incorrect, you MUST explain *why* it is incorrect, detailing the specific error (e.g., 'subject-verb agreement error: "he go" should be "he goes"', 'incorrect tense: "I have went" should be "I have gone" or "I went" depending on context', 'wrong preposition: "depend on" not "depend in"'). Suggest a clear correction. If the grammar is excellent, acknowledge this.
 
 Original News Article:
 '''
