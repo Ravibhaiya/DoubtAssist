@@ -32,7 +32,7 @@ export default function ReadingPage() {
       {/* Fixed input bar */}
       <div className="fixed left-0 right-0 bg-background border-t border-border z-10 p-2 sm:p-4 bottom-16 sm:bottom-0">
         {/* Input group, centered with max-width */}
-        <div className="w-full max-w-2xl mx-auto flex items-center bg-card border border-primary rounded-full p-1 pr-1.5 pl-5 shadow-lg">
+        <div className="w-full max-w-lg mx-auto flex items-center bg-card border border-primary rounded-full p-1 pr-1.5 pl-5 shadow-lg">
             <Textarea
               placeholder="Paste or type your text here..."
               className="flex-grow bg-transparent border-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none resize-none h-14 py-3.5 text-base placeholder:text-muted-foreground no-scrollbar"
