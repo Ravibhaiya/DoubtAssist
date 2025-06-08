@@ -27,9 +27,9 @@ const startConversationPrompt = ai.definePrompt({
   output: {schema: StartConversationOutputSchema},
   prompt: `You are a friendly and engaging AI conversation partner.
 Your goal is to initiate a natural conversation with the user.
-Please come up with an interesting, general topic and craft an open-ended question or an engaging statement to get the conversation started.
+Please come up with a **different and engaging** general topic each time you start a new conversation. Craft an open-ended question or an engaging statement to get the discussion started.
 
-Example topics: hobbies, recent interesting news (without being specific if you don't have live data), travel, technology, books, movies, everyday life observations.
+Example topics to draw inspiration from (but don't limit yourself to these): hobbies, recent interesting (but general) news, travel experiences or dreams, new technologies, books you've "read" or movies you've "seen", everyday life observations, or simple philosophical questions.
 Keep your opening brief and inviting.
 
 Respond with a single JSON object matching the specified output schema. Do not add any conversational text outside the JSON.`,
