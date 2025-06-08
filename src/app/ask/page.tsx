@@ -55,9 +55,16 @@ export default function AskPage() {
     };
     setMessages(prevMessages => {
       if (isLoadingMsg && sender === 'ai') {
-        const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
-        return [...filteredMessages, newMessage];
+        // Replace existing loading message if one exists, otherwise add new.
+        const existingLoadingIndex = prevMessages.findIndex(msg => msg.isLoading && msg.sender === 'ai');
+        if (existingLoadingIndex !== -1) {
+          const updatedMessages = [...prevMessages];
+          updatedMessages[existingLoadingIndex] = newMessage;
+          return updatedMessages;
+        }
+        return [...prevMessages, newMessage];
       }
+      // Remove any existing loading AI message before adding the new final AI message or user message
       const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
@@ -82,17 +89,19 @@ export default function AskPage() {
     addMessage(userText, 'user');
     setInputValue('');
     setIsLoading(true);
-    addMessage("Thinking...", 'ai', true);
+    addMessage("Thinking...", 'ai', true); // Add a temporary loading message
 
     try {
       const input: ExplainTextInput = {
         textToExplain: userText,
       };
       const result = await explainText(input);
+      // The addMessage function will replace the "Thinking..." message
       addMessage(undefined, 'ai', false, result);
 
     } catch (error) {
       console.error("Error explaining text:", error);
+      // The addMessage function will replace the "Thinking..." message
       addMessage(undefined, 'ai', false, {
         explanation: "Sorry, I encountered an error while trying to explain that. Please check your query or try again later.",
         originalContextUsed: null,
