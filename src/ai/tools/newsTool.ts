@@ -1,4 +1,5 @@
 
+'use server';
 /**
  * @fileOverview A Genkit tool to fetch recent news articles using NewsData.io.
  *
@@ -28,7 +29,7 @@ export type FetchNewsArticleInput = z.infer<typeof FetchNewsArticleInputSchema>;
 export const NewsArticleSchema = z.object({
   title: z.string().describe('The title of the news article.'),
   description: z.string().describe('A short description or snippet of the article content.'),
-  url: z.string().url().describe('The URL to the full article (referred to as `link` by NewsData.io).'),
+  url: z.string().describe('The URL to the full article (referred to as `link` by NewsData.io).'), // URL validation removed earlier due to Gemini conflict
   publishedAt: z.string().describe('The publication date and time of the article (YYYY-MM-DD HH:MM:SS from NewsData.io `pubDate`, converted to ISO 8601 string for consistency).'),
   sourceName: z.string().describe('The name/ID of the news source (from NewsData.io `source_id`).'),
   content: z.string().optional().describe("The full content of the article, if available (from NewsData.io `content` or `description`). May be truncated by the API.")
@@ -52,22 +53,15 @@ export const fetchNewsArticleTool = ai.defineTool(
       apikey: newsDataApiKey,
       q: input.query || 'India current events',
       language: 'en',
-      // full_content: '1', // Request full content if available - NewsData.io param
-      // prioritydomain: 'top', // Prioritize results from top domains - NewsData.io param
     });
 
-    // NewsData.io uses 'domain' for sources like 'thehindu.com,timesofindia.indiatimes.com'
     if (input.preferredDomains && input.preferredDomains.length > 0) {
       params.append('domain', input.preferredDomains.join(','));
     }
-    // If input.preferredDomains is not provided or empty, we simply don't append the 'domain' parameter,
-    // allowing NewsData.io to search all its sources.
-
 
     const apiUrl = `https://newsdata.io/api/1/news?${params.toString()}`;
 
     try {
-      // console.log("Attempting to fetch news from NewsData.io with URL:", apiUrl);
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -79,31 +73,34 @@ export const fetchNewsArticleTool = ai.defineTool(
       }
 
       const data = await response.json();
-      // console.log("NewsData.io raw response:", JSON.stringify(data, null, 2));
 
       if (data.status === 'success' && data.results && data.results.length > 0) {
-        // Sort by pubDate descending to get the latest first, as NewsData.io might not sort by recency by default
-        const sortedArticles = data.results.sort((a: any, b: any) => {
-          return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
-        });
-
-        for (const article of sortedArticles) {
-          // Basic validation of required fields
+        const suitableArticles: NewsArticle[] = [];
+        for (const article of data.results) {
           if (article.title && (article.description || article.content) && article.link && article.pubDate && article.source_id) {
             const articleDateObj = new Date(article.pubDate.replace(' ', 'T') + 'Z'); // Convert YYYY-MM-DD HH:MM:SS to ISO parsable
-            // console.log("Found suitable article from NewsData.io:", article.title, "Published:", article.pubDate);
-            return {
+            suitableArticles.push({
               title: article.title,
               description: article.description || '',
-              url: article.link, // map link to url
-              publishedAt: articleDateObj.toISOString(), // map pubDate to publishedAt (ISO format)
-              sourceName: article.source_id, // map source_id to sourceName
-              content: article.content || article.description || '', // prefer content, fallback to description
-            };
+              url: article.link,
+              publishedAt: articleDateObj.toISOString(),
+              sourceName: article.source_id,
+              content: article.content || article.description || '',
+            });
           }
         }
+
+        if (suitableArticles.length > 0) {
+          // Sort by pubDate descending to still have a preference for more recent ones generally
+          suitableArticles.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+          
+          // Pick a random article from the list of suitable ones
+          const randomIndex = Math.floor(Math.random() * suitableArticles.length);
+          // console.log(`Selected article at index ${randomIndex} from ${suitableArticles.length} suitable articles.`);
+          return suitableArticles[randomIndex];
+        }
       }
-      // console.log("No suitable article found from NewsData.io matching criteria.");
+      // console.log("No suitable article found from NewsData.io matching criteria or API returned no results.");
       return null;
     } catch (error: any) {
       console.error('Error fetching news from NewsData.io:', error.message, error.stack);
@@ -111,4 +108,3 @@ export const fetchNewsArticleTool = ai.defineTool(
     }
   }
 );
-
