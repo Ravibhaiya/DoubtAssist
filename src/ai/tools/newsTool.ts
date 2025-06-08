@@ -21,7 +21,7 @@ if (!newsDataApiKey) {
 
 export const FetchNewsArticleInputSchema = z.object({
   query: z.string().optional().describe("Keywords or a phrase to search for in news articles. Defaults to 'India current events' if not provided."),
-  preferredDomains: z.array(z.string()).optional().describe("A list of preferred news source domains (e.g., 'thehindu.com', 'timesofindia.indiatimes.com'). The tool will try to fetch from these if specified."),
+  preferredDomains: z.array(z.string()).optional().describe("A list of preferred news source domains (e.g., 'thehindu.com', 'timesofindia.indiatimes.com'). If provided, the search will be limited to these domains. If omitted or empty, NewsData.io will search all its sources."),
 });
 export type FetchNewsArticleInput = z.infer<typeof FetchNewsArticleInputSchema>;
 
@@ -38,9 +38,9 @@ export type NewsArticle = z.infer<typeof NewsArticleSchema>;
 export const fetchNewsArticleTool = ai.defineTool(
   {
     name: 'fetchNewsArticle',
-    description: 'Fetches a single, very recent news article (from today or yesterday) using NewsData.io, based on a query and preferred domains. Prioritizes Indian sources like The Hindu or Times of India if no specific preference is given.',
+    description: 'Fetches a single, very recent news article (from today or yesterday) using NewsData.io, based on a query and optional preferred domains. If no domains are preferred, searches all available sources. Prioritizes Indian sources like The Hindu or Times of India if specific hints leading to those domains are provided to the calling flow.',
     inputSchema: FetchNewsArticleInputSchema,
-    outputSchema: NewsArticleSchema.nullable(), 
+    outputSchema: NewsArticleSchema.nullable(),
   },
   async (input) => {
     if (!newsDataApiKey) {
@@ -59,14 +59,17 @@ export const fetchNewsArticleTool = ai.defineTool(
       language: 'en',
       from_date: formatDate(yesterday),
       to_date: formatDate(today),
+      // full_content: '1', // Request full content if available - NewsData.io param
+      // prioritydomain: 'top', // Prioritize results from top domains - NewsData.io param
     });
 
     // NewsData.io uses 'domain' for sources like 'thehindu.com,timesofindia.indiatimes.com'
-    let domainsToUse = ['thehindu.com', 'timesofindia.indiatimes.com', 'indiatoday.in', 'ndtv.com']; // Default domains
     if (input.preferredDomains && input.preferredDomains.length > 0) {
-      domainsToUse = input.preferredDomains;
+      params.append('domain', input.preferredDomains.join(','));
     }
-    params.append('domain', domainsToUse.join(','));
+    // If input.preferredDomains is not provided or empty, we simply don't append the 'domain' parameter,
+    // allowing NewsData.io to search all its sources.
+
 
     const apiUrl = `https://newsdata.io/api/1/news?${params.toString()}`;
 
@@ -94,7 +97,7 @@ export const fetchNewsArticleTool = ai.defineTool(
         for (const article of sortedArticles) {
           // Basic validation of required fields
           if (article.title && (article.description || article.content) && article.link && article.pubDate && article.source_id) {
-            // Ensure article date is within the last 48 hours (approx)
+            // Ensure article date is within the search range
             const articleDateObj = new Date(article.pubDate.replace(' ', 'T') + 'Z'); // Convert YYYY-MM-DD HH:MM:SS to ISO parsable
             const searchStartDate = new Date(formatDate(yesterday) + "T00:00:00.000Z");
             const searchEndDate = new Date(formatDate(today) + "T23:59:59.999Z");
