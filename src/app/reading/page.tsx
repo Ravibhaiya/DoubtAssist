@@ -6,17 +6,22 @@ import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
 import { Send as SendIcon, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+
 import { getNewsAndQuestions, type GetNewsAndQuestionsOutput } from '@/ai/flows/readingComprehensionFlow';
 import { evaluateUserAnswer, type EvaluateUserAnswerInput, type EvaluateUserAnswerOutput } from '@/ai/flows/evaluateAnswerFlow';
 import { answerArticleQuery, type AnswerArticleQueryInput, type AnswerArticleQueryOutput } from '@/ai/flows/answerArticleQueryFlow';
+import { explainText, type ExplainTextInput, type ExplainTextOutput } from '@/ai/flows/explainTextFlow';
+
 
 interface Message {
   id: string;
-  text: string;
+  text?: string; // Text can be optional if explanationDetails provides the main content
   sender: 'user' | 'ai';
   timestamp: Date;
   isLoading?: boolean;
-  evaluationDetails?: EvaluateUserAnswerOutput; // Added for structured evaluation
+  evaluationDetails?: EvaluateUserAnswerOutput;
+  explanationDetails?: ExplainTextOutput; // Added for structured explanation
 }
 
 type ReadingState = 'idle' | 'awaiting_answer' | 'evaluating' | 'error';
@@ -34,10 +39,11 @@ export default function ReadingPage() {
   const [isAISpeaking, setIsAISpeaking] = useState(false); 
 
   const addMessage = (
-    text: string,
+    text: string | undefined, // Make text optional
     sender: 'user' | 'ai',
     isLoadingMsg: boolean = false,
-    evaluationDetails?: EvaluateUserAnswerOutput
+    evaluationDetails?: EvaluateUserAnswerOutput,
+    explanationDetails?: ExplainTextOutput 
   ) => {
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
@@ -46,13 +52,20 @@ export default function ReadingPage() {
       timestamp: new Date(),
       isLoading: isLoadingMsg,
       evaluationDetails,
+      explanationDetails,
     };
     setMessages(prevMessages => {
       if (isLoadingMsg && sender === 'ai') {
-        const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
-        return [...filteredMessages, newMessage];
+        // Replace existing loading message if one exists, otherwise add new.
+        const existingLoadingIndex = prevMessages.findIndex(msg => msg.isLoading && msg.sender === 'ai');
+        if (existingLoadingIndex !== -1) {
+          const updatedMessages = [...prevMessages];
+          updatedMessages[existingLoadingIndex] = newMessage;
+          return updatedMessages;
+        }
+        return [...prevMessages, newMessage];
       }
-      // Remove any existing loading AI message before adding the new final AI message
+      // Remove any existing loading AI message before adding the new final AI message or user message
       const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
@@ -61,6 +74,9 @@ export default function ReadingPage() {
   const fetchNews = async () => {
     setIsLoading(true);
     setReadingState('idle');
+    setCurrentArticle(null); // Clear current article when fetching new
+    setCurrentQuestions([]);
+    setCurrentQuestionIndex(0);
     addMessage("Fetching a news article and questions for you...", 'ai', true);
     setIsAISpeaking(true);
     try {
@@ -70,17 +86,14 @@ export default function ReadingPage() {
       setCurrentQuestions(result.questions);
       setCurrentQuestionIndex(0);
 
-      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-
+      // addMessage will remove the loading message
       let articleDisplay = "";
       if (result.articleSource) articleDisplay += `Source: ${result.articleSource}\n`;
       if (result.articleDate && result.articleDate !== "N/A") {
          articleDisplay += `Published on: ${result.articleDate}\n`;
       }
       if (result.articleUrl) articleDisplay += `URL: ${result.articleUrl}\n`;
-
       if (articleDisplay.length > 0) articleDisplay += "\n";
-
       articleDisplay += result.article;
 
       addMessage(articleDisplay.trim(), 'ai');
@@ -89,13 +102,12 @@ export default function ReadingPage() {
         addMessage(result.questions[0], 'ai');
         setReadingState('awaiting_answer');
       } else {
-        addMessage("I couldn't find any questions for this article. Let's try another one?", 'ai');
+        addMessage("I couldn't find any questions for this article. You can ask me to explain something or fetch another article.", 'ai');
         setReadingState('idle');
       }
     } catch (error) {
       console.error("Error fetching news:", error);
-      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-      addMessage("Sorry, I couldn't fetch news right now. Please try again later.", 'ai');
+      addMessage("Sorry, I couldn't fetch news right now. Please try again later or ask me to explain something.", 'ai');
       setReadingState('error');
     } finally {
       setIsLoading(false);
@@ -129,98 +141,86 @@ export default function ReadingPage() {
 
     setIsLoading(true);
     setIsAISpeaking(true);
+    let loadingMessageText = "Thinking..."; // Default loading
 
     try {
       if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
         setReadingState('evaluating');
-        addMessage("Evaluating your answer...", 'ai', true);
+        loadingMessageText = "Evaluating your answer...";
+        addMessage(loadingMessageText, 'ai', true);
 
         const evaluationInput: EvaluateUserAnswerInput = {
           article: currentArticle,
           question: currentQuestions[currentQuestionIndex],
           userAnswer: userText,
         };
+        const evaluationResult = await evaluateUserAnswer(evaluationInput);
+        addMessage(
+          "Here's the evaluation of your answer:",
+          'ai',
+          false,
+          evaluationResult
+        );
 
-        try {
-          const evaluationResult = await evaluateUserAnswer(evaluationInput);
-          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai'))); // Remove "Evaluating..."
+        const nextQuestionIndex = currentQuestionIndex + 1;
+        if (nextQuestionIndex < currentQuestions.length) {
+          setCurrentQuestionIndex(nextQuestionIndex);
+          addMessage(currentQuestions[nextQuestionIndex], 'ai');
+          setReadingState('awaiting_answer');
+        } else {
+          addMessage("You've answered all questions for this article! Ask about the article, explain something, or request a 'new article'.", 'ai');
+          setReadingState('idle');
+        }
+      } else { // Covers 'idle', 'error', or finished questions states
+        const lowerUserText = userText.toLowerCase();
+        const newArticleKeywords = ["new article", "another article", "fetch news", "next one", "try another", "get news", "new news", "next article"];
+        let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
 
+        if (!isRequestingNew && messages.length > 0) {
+          const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai' && !m.isLoading && !m.evaluationDetails && !m.explanationDetails);
+          if (lastAiMessage && (lastAiMessage.text?.toLowerCase().includes("another one") || lastAiMessage.text?.toLowerCase().includes("new one")) && (lowerUserText === "yes" || lowerUserText === "ok" || lowerUserText === "sure") ) {
+            isRequestingNew = true;
+          }
+        }
+
+        if (isRequestingNew) {
+          await fetchNews(); // This will set its own loading and messages
+          return; // fetchNews handles its own finally block
+        } else if (currentArticle && (lowerUserText.includes("?") || lowerUserText.split(" ").length > 3 || ["what", "who", "why", "when", "where", "how", "tell me about"].some(kw => lowerUserText.startsWith(kw)))) {
+          // Heuristic: Treat as a question about the article if it's a question or longer phrase
+          loadingMessageText = "Thinking about your question on the article...";
+          addMessage(loadingMessageText, 'ai', true);
+          const queryInput: AnswerArticleQueryInput = { article: currentArticle, userQuery: userText };
+          const queryResult = await answerArticleQuery(queryInput);
+          addMessage(queryResult.answer, 'ai');
+          addMessage("Anything else about this article, explain something, or request a 'new article'?", 'ai');
+          setReadingState('idle');
+        } else {
+          // Default to explain text
+          loadingMessageText = "Explaining...";
+          addMessage(loadingMessageText, 'ai', true);
+          const explainInput: ExplainTextInput = { textToExplain: userText };
+          const result = await explainText(explainInput);
           addMessage(
-            "Here's the evaluation of your answer:", // Main text for the message bubble
+            undefined, // No generic text, explanation itself is the content
             'ai',
             false,
-            evaluationResult // Pass the details here
+            undefined,
+            result
           );
-
-          const nextQuestionIndex = currentQuestionIndex + 1;
-          if (nextQuestionIndex < currentQuestions.length) {
-            setCurrentQuestionIndex(nextQuestionIndex);
-            addMessage(currentQuestions[nextQuestionIndex], 'ai');
-            setReadingState('awaiting_answer');
-          } else {
-            addMessage("You've answered all questions for this article! Would you like to try another one, or do you have any questions about this article?", 'ai');
-            setReadingState('idle');
-          }
-        } catch (error) {
-          console.error("Error evaluating answer:", error);
-          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-          addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
-          setReadingState('error');
-        } finally {
-          setIsLoading(false);
-          setIsAISpeaking(false);
+          addMessage(currentArticle ? "Anything else about the article, another explanation, or a new article?" : "Anything else you'd like to explain, or would you like a news article?", 'ai');
+          setReadingState('idle');
         }
-      } else if (readingState === 'idle' || readingState === 'error') {
-          const lowerUserText = userText.toLowerCase();
-          const newArticleKeywords = ["new article", "another article", "fetch news", "next one", "try another", "get news", "new news"];
-
-          let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
-          if (!isRequestingNew && messages.length > 0) {
-            const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai' && !m.isLoading && !m.evaluationDetails);
-            if (lastAiMessage && lastAiMessage.text.toLowerCase().includes("another one") && (lowerUserText === "yes" || lowerUserText === "ok" || lowerUserText === "sure") ) {
-              isRequestingNew = true;
-            }
-          }
-
-          if (isRequestingNew) {
-              await fetchNews();
-              return;
-          } else if (currentArticle) {
-              addMessage("Thinking...", 'ai', true);
-              try {
-                  const queryInput: AnswerArticleQueryInput = { article: currentArticle, userQuery: userText };
-                  const queryResult = await answerArticleQuery(queryInput);
-                  setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-                  addMessage(queryResult.answer, 'ai');
-                  addMessage("Do you have any other questions about this article, or would you like a new one?", 'ai');
-                  setReadingState('idle');
-              } catch (error) {
-                  console.error("Error answering article query:", error);
-                  setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-                  addMessage("Sorry, I couldn't answer your question about the article right now.", 'ai');
-                  setReadingState('error');
-              } finally {
-                setIsLoading(false);
-                setIsAISpeaking(false);
-              }
-          } else {
-              setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-              addMessage("I'm not sure how to help with that. Would you like me to fetch a news article?", 'ai');
-              setReadingState('idle');
-              setIsLoading(false);
-              setIsAISpeaking(false);
-          }
-      } else {
-        setIsLoading(false);
-        setIsAISpeaking(false);
       }
     } catch (e) {
-        console.error("Outer error in handleSend:", e);
+        console.error("Error in handleSend:", e);
+        // Ensure loading message is removed even on error
         setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-        addMessage("An unexpected error occurred.", "ai");
-        setIsLoading(false);
-        setIsAISpeaking(false);
+        addMessage("An unexpected error occurred. Please try again.", "ai");
         setReadingState('error');
+    } finally {
+      setIsLoading(false);
+      setIsAISpeaking(false);
     }
   };
 
@@ -232,7 +232,7 @@ export default function ReadingPage() {
   };
 
   const sendButtonContent = () => {
-    if (isLoading || isAISpeaking) { // Simplified condition
+    if (isLoading || isAISpeaking) {
       return <Loader2 className="h-5 w-5 animate-spin" />;
     }
     return <SendIcon className="h-5 w-5" />;
@@ -241,8 +241,8 @@ export default function ReadingPage() {
   const inputPlaceholder = () => {
     if (isLoading || isAISpeaking) return "AI is working...";
     if (readingState === 'awaiting_answer') return "Type your answer...";
-    if (currentArticle) return "Ask about the article or request a new one";
-    return "Type here or press send for news";
+    if (currentArticle) return "Ask about article, explain text, or 'new article'...";
+    return "Explain a word/phrase or type 'new article'";
   }
 
   return (
@@ -263,20 +263,18 @@ export default function ReadingPage() {
                   message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card text-card-foreground rounded-bl-none',
-                   // No italic for loading, handled by Loader2 presence
                 )}
               >
                 {message.isLoading && message.sender === 'ai' ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>{message.text}</span>
+                    <span>{message.text || "Thinking..."}</span>
                   </div>
                 ) : message.evaluationDetails ? (
                   <div className="space-y-2 text-sm">
-                    <p className="break-words whitespace-pre-wrap font-medium">{message.text}</p>
-                    
+                    {message.text && <p className="break-words whitespace-pre-wrap font-medium">{message.text}</p>}
                     <div className={cn(
-                      "p-2.5 rounded-lg shadow", // Added shadow for better pop
+                      "p-2.5 rounded-lg shadow",
                       message.evaluationDetails.isCorrect 
                         ? "bg-green-100 text-green-900 dark:bg-green-700 dark:text-green-100" 
                         : "bg-yellow-100 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-100"
@@ -284,19 +282,44 @@ export default function ReadingPage() {
                       <strong className="font-semibold block mb-1">Evaluation:</strong> 
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.isCorrect ? 'Correct!' : 'Needs review.'}</span>
                     </div>
-
                     <div className="p-2.5 rounded-lg shadow bg-blue-100 text-blue-900 dark:bg-blue-700 dark:text-blue-100">
                       <strong className="font-semibold block mb-1">Feedback:</strong> 
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.feedback}</span>
                     </div>
-
                     <div className="p-2.5 rounded-lg shadow bg-indigo-100 text-indigo-900 dark:bg-indigo-700 dark:text-indigo-100">
                       <strong className="font-semibold block mb-1">Grammar:</strong> 
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.grammarFeedback}</span>
                     </div>
                   </div>
+                ) : message.explanationDetails ? (
+                   <Card className="bg-transparent border-0 shadow-none p-0">
+                    <CardContent className="p-0 text-sm space-y-3">
+                      {message.text && <p className="whitespace-pre-wrap break-words font-medium mb-2">{message.text}</p>}
+                      {message.explanationDetails.explanation && <p className="whitespace-pre-wrap break-words">{message.explanationDetails.explanation}</p>}
+                      {message.explanationDetails.originalContextUsed && (
+                        <div className="mt-2 p-2.5 rounded-lg shadow bg-blue-100 dark:bg-blue-700 text-blue-900 dark:text-blue-100">
+                          <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Meaning in Context:</strong>
+                          <p className="whitespace-pre-wrap break-words italic">"{message.explanationDetails.originalContextUsed}"</p>
+                        </div>
+                      )}
+                      {message.explanationDetails.exampleSentences && message.explanationDetails.exampleSentences.length > 0 && (
+                        <div className="mt-2 p-2.5 rounded-lg shadow bg-green-100 dark:bg-green-700 text-green-900 dark:text-green-100">
+                          <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Example Sentences:</strong>
+                          <ul className="list-disc list-inside space-y-1 pl-1">
+                            {message.explanationDetails.exampleSentences.map((ex, idx) => (
+                              <li key={idx} className="whitespace-pre-wrap break-words">{ex}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {/* Fallback if all parts of explanationDetails are empty but it exists */}
+                      {!message.explanationDetails.explanation && !message.explanationDetails.originalContextUsed && (!message.explanationDetails.exampleSentences || message.explanationDetails.exampleSentences.length === 0) && message.text && (
+                         <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
+                       )}
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
+                  message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
                 )}
               </div>
             </div>

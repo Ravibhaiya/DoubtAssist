@@ -2,16 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageSquarePlus } from 'lucide-react';
+import { Home } from 'lucide-react'; // Removed MessageSquarePlus
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/ask', label: 'Ask Doubt', icon: MessageSquarePlus },
+  // { href: '/ask', label: 'Ask Doubt', icon: MessageSquarePlus }, // Removed
 ];
 
 export function BottomNavigationBar() {
   const pathname = usePathname();
+
+  // Return null or an empty fragment if there are no nav items to prevent rendering an empty bar
+  if (navItems.length === 0) {
+    return null; 
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border shadow-t-md flex sm:hidden z-50">
