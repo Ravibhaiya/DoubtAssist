@@ -4,20 +4,90 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
-import { Send as SendIcon } from 'lucide-react';
+import { Send as SendIcon, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { getNewsAndQuestions, type GetNewsAndQuestionsOutput } from '@/ai/flows/readingComprehensionFlow';
+import { evaluateUserAnswer, type EvaluateUserAnswerInput } from '@/ai/flows/evaluateAnswerFlow';
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'ai'; // For now, only 'user'
+  sender: 'user' | 'ai';
   timestamp: Date;
+  isLoading?: boolean;
 }
+
+type ReadingState = 'idle' | 'awaiting_answer' | 'evaluating' | 'error';
 
 export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+
+  const [currentArticle, setCurrentArticle] = useState<string | null>(null);
+  const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [readingState, setReadingState] = useState<ReadingState>('idle');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+
+
+  const addMessage = (text: string, sender: 'user' | 'ai', isLoadingMsg: boolean = false) => {
+    const newMessage: Message = {
+      id: Date.now().toString() + Math.random(), // Simple unique ID
+      text,
+      sender,
+      timestamp: new Date(),
+      isLoading: isLoadingMsg,
+    };
+    setMessages(prevMessages => {
+      if (isLoadingMsg) {
+        // Replace previous loading message if any
+        const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
+        return [...filteredMessages, newMessage];
+      }
+      // Remove any loading message before adding the new final message
+      const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
+      return [...filteredMessages, newMessage];
+    });
+  };
+
+  const fetchNews = async () => {
+    setIsLoading(true);
+    setReadingState('idle');
+    addMessage("Fetching a news article and questions for you...", 'ai', true);
+    setIsAISpeaking(true);
+    try {
+      const result = await getNewsAndQuestions({});
+      setCurrentArticle(result.article);
+      setCurrentQuestions(result.questions);
+      setCurrentQuestionIndex(0);
+      
+      // Remove loading message
+      setMessages(prev => prev.filter(m => !m.isLoading));
+
+      addMessage(result.article, 'ai');
+      if (result.questions.length > 0) {
+        addMessage(result.questions[0], 'ai');
+        setReadingState('awaiting_answer');
+      } else {
+        addMessage("I couldn't find any questions for this article. Let's try another one?", 'ai');
+        setReadingState('idle');
+      }
+    } catch (error) {
+      console.error("Error fetching news:", error);
+      addMessage("Sorry, I couldn't fetch news right now. Please try again later.", 'ai');
+      setReadingState('error');
+    } finally {
+      setIsLoading(false);
+      setIsAISpeaking(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNews();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Fetch news on initial load
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,16 +101,57 @@ export default function ReadingPage() {
     setInputValue(e.target.value);
   };
 
-  const handleSend = () => {
-    if (inputValue.trim() === '') return;
-    const newMessage: Message = {
-      id: Date.now().toString(), // Simple unique ID for client-side
-      text: inputValue.trim(),
-      sender: 'user',
-      timestamp: new Date(),
-    };
-    setMessages(prevMessages => [...prevMessages, newMessage]);
+  const handleSend = async () => {
+    if (inputValue.trim() === '' || isLoading || isAISpeaking) return;
+
+    const userAnswerText = inputValue.trim();
+    addMessage(userAnswerText, 'user');
     setInputValue('');
+    setIsLoading(true);
+    setIsAISpeaking(true);
+
+    if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
+      setReadingState('evaluating');
+      addMessage("Evaluating your answer...", 'ai', true);
+      
+      const evaluationInput: EvaluateUserAnswerInput = {
+        article: currentArticle,
+        question: currentQuestions[currentQuestionIndex],
+        userAnswer: userAnswerText,
+      };
+
+      try {
+        const evaluationResult = await evaluateUserAnswer(evaluationInput);
+        // Remove loading message
+         setMessages(prev => prev.filter(m => !m.isLoading));
+
+        let feedbackText = `Evaluation: ${evaluationResult.isCorrect ? 'Correct!' : 'Needs review.'}\nFeedback: ${evaluationResult.feedback}\nGrammar: ${evaluationResult.grammarFeedback}`;
+        addMessage(feedbackText, 'ai');
+
+        const nextQuestionIndex = currentQuestionIndex + 1;
+        if (nextQuestionIndex < currentQuestions.length) {
+          setCurrentQuestionIndex(nextQuestionIndex);
+          addMessage(currentQuestions[nextQuestionIndex], 'ai');
+          setReadingState('awaiting_answer');
+        } else {
+          addMessage("You've answered all questions for this article! Would you like to try another one?", 'ai');
+          setReadingState('idle'); 
+          // Optionally, provide a button or prompt to fetch new article
+        }
+      } catch (error) {
+        console.error("Error evaluating answer:", error);
+        addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
+        setReadingState('error'); // Or back to 'awaiting_answer' for retry
+      } finally {
+        setIsLoading(false);
+        setIsAISpeaking(false);
+      }
+    } else if (readingState === 'idle' || readingState === 'error') {
+        // If idle or error, interpret "send" as a request for new news.
+        await fetchNews();
+        setIsLoading(false); // fetchNews handles its own loading state for AI messages
+        setIsAISpeaking(false);
+    }
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -52,7 +163,7 @@ export default function ReadingPage() {
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex-grow container mx-auto p-4 overflow-y-auto pb-28 sm:pb-24">
+      <div className="flex-grow container mx-auto p-4 overflow-y-auto pb-28 sm:pb-24"> {/* Adjusted pb for input bar */}
         <div className="space-y-4">
           {messages.map((message) => (
             <div
@@ -67,10 +178,18 @@ export default function ReadingPage() {
                   "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg p-3 rounded-2xl shadow-md",
                   message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
-                    : 'bg-card text-card-foreground rounded-bl-none' // For potential AI messages later
+                    : 'bg-card text-card-foreground rounded-bl-none',
+                  message.isLoading && 'italic text-muted-foreground'
                 )}
               >
-                <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
+                {message.isLoading && message.sender === 'ai' ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>{message.text}</span>
+                  </div>
+                ) : (
+                  <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
+                )}
               </div>
             </div>
           ))}
@@ -78,24 +197,24 @@ export default function ReadingPage() {
         </div>
       </div>
 
-      {/* Fixed input bar at the bottom */}
       <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 py-2 px-2 z-[60] border-t border-border">
         <div className="flex items-center gap-2 max-w-xs mx-auto bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out">
           <Input
             type="text"
-            placeholder="Enter your message..."
+            placeholder={isLoading ? "AI is working..." : (readingState === 'awaiting_answer' ? "Type your answer..." : "Type here or press send for news")}
             value={inputValue}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
+            disabled={isLoading || isAISpeaking}
           />
           <Button
             onClick={handleSend}
-            disabled={inputValue.trim() === ''}
+            disabled={inputValue.trim() === '' && readingState === 'awaiting_answer' || isLoading || isAISpeaking}
             className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
             aria-label="Send message"
           >
-            <SendIcon className="h-5 w-5" />
+            {isLoading && readingState !== 'awaiting_answer' ? <Loader2 className="h-5 w-5 animate-spin" /> : <SendIcon className="h-5 w-5" />}
           </Button>
         </div>
       </div>
