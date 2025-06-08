@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview A Genkit tool to fetch recent news articles using NewsData.io.
  *
@@ -29,7 +28,7 @@ export type FetchNewsArticleInput = z.infer<typeof FetchNewsArticleInputSchema>;
 export const NewsArticleSchema = z.object({
   title: z.string().describe('The title of the news article.'),
   description: z.string().describe('A short description or snippet of the article content.'),
-  url: z.string().describe('The URL to the full article (referred to as `link` by NewsData.io).'), // URL validation removed earlier due to Gemini conflict
+  url: z.string().describe('The URL to the full article (referred to as `link` by NewsData.io).'),
   publishedAt: z.string().describe('The publication date and time of the article (YYYY-MM-DD HH:MM:SS from NewsData.io `pubDate`, converted to ISO 8601 string for consistency).'),
   sourceName: z.string().describe('The name/ID of the news source (from NewsData.io `source_id`).'),
   content: z.string().optional().describe("The full content of the article, if available (from NewsData.io `content` or `description`). May be truncated by the API.")
