@@ -28,20 +28,22 @@ const newsPrompt = ai.definePrompt({
   input: {schema: GetNewsAndQuestionsInputSchema},
   output: {schema: GetNewsAndQuestionsOutputSchema},
   prompt: `You are an AI assistant helping a user with reading comprehension.
-Your task is to provide a news article summary, its publication date, and then ask comprehension questions about it.
+Your task is to provide a news article summary about **current events**, its publication date, and then ask comprehension questions about it.
 
-Instructions:
-1. Find a concise summary of a general interest news article.
-2. The article MUST be from **today** (the current date of this request) or, if no suitable article from today is found, from **yesterday** (the day immediately preceding today). Do not provide articles older than yesterday.
-3. The article should ideally be from a reputable Indian English newspaper (like The Hindu or Times of India if possible, based on your training data for the latest events).
-4. Aim to provide a different article than one you might have provided recently, covering diverse topics.
+**CRITICAL DATE REQUIREMENT:**
+1. The news article summary MUST be about events that occurred on **today** (the exact current calendar date of this request) or, if no suitable article detailing events from today is found, from **yesterday** (the calendar day immediately preceding today).
+2. **DO NOT provide articles older than yesterday.** For example, if the current date is June 9, 2025, you must provide an article from June 9, 2025, or June 8, 2025.
+
+Further Instructions:
+3. The article should ideally be from a reputable Indian English newspaper (like The Hindu or Times of India if possible, but prioritize recency from any reputable source if a specific Indian source doesn't have an article matching the strict date criteria).
+4. Aim to provide a different article than one you might have provided recently, covering diverse topics if possible while adhering to the date constraint.
 5. The article summary must be in English and be between 100 and 200 words.
-6. Determine and provide the **publication date** of the article. Format it clearly (e.g., "YYYY-MM-DD" or "Month DD, YYYY"). This date must match the "today" or "yesterday" requirement.
+6. Determine and provide the **publication date** of the article. Format it clearly (e.g., "YYYY-MM-DD" or "Month DD, YYYY"). This date MUST match the "today" or "yesterday" requirement.
 7. After providing the article and its date, generate 1 or 2 clear comprehension questions that can be answered based *only* on the information present in the summarized article.
 {{#if sourceHint}}
-Consider news related to topics typically covered by {{sourceHint}}.
+Consider news related to topics typically covered by {{sourceHint}}, but only if it meets the strict date criteria.
 {{/if}}
-Ensure your output is in the specified JSON format, including the articleDate.
+Ensure your output is in the specified JSON format, including the articleDate matching the critical date requirement.
 `,
 });
 
@@ -71,4 +73,3 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
 export async function getNewsAndQuestions(input: GetNewsAndQuestionsInput): Promise<GetNewsAndQuestionsOutput> {
   return getNewsAndQuestionsFlow(input);
 }
-
