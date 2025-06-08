@@ -15,6 +15,7 @@
 
     --primary: 207 80% 51%; /* #1E88E5 Dodger Blue */
     --primary-foreground: 0 0% 98%; /* White */
+    --primary-darker: 207 80% 36%; /* Darker Dodger Blue for shadow */
 
     --secondary: 0 0% 90%; /* A slightly darker gray than background */
     --secondary-foreground: 0 0% 10%;
@@ -60,6 +61,7 @@
     --popover-foreground: 0 0% 98%;
     --primary: 207 80% 51%; /* #1E88E5 Dodger Blue */
     --primary-foreground: 0 0% 98%;
+    --primary-darker: 207 80% 36%; /* Darker Dodger Blue for shadow */
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
