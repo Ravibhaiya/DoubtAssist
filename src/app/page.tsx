@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]"> {/* Adjust min-height if header/footer height changes */}
+    <div className="container mx-auto p-4 flex flex-col items-center justify-start pt-10 min-h-[calc(100vh-8rem)]"> {/* Adjust min-height if header/footer height changes */}
       {/* Removed welcome text and icon as per previous requests */}
       <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
         <Link href="/reading">
