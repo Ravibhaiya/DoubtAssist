@@ -3,11 +3,29 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
 import { Send as SendIcon } from 'lucide-react';
+import { cn } from "@/lib/utils";
+
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'ai'; // For now, only 'user'
+  timestamp: Date;
+}
 
 export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<null | HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -15,8 +33,13 @@ export default function ReadingPage() {
 
   const handleSend = () => {
     if (inputValue.trim() === '') return;
-    console.log("Sending:", inputValue);
-    // TODO: Implement actual send logic (e.g., call an AI flow)
+    const newMessage: Message = {
+      id: Date.now().toString(), // Simple unique ID for client-side
+      text: inputValue.trim(),
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    setMessages(prevMessages => [...prevMessages, newMessage]);
     setInputValue('');
   };
 
@@ -30,7 +53,29 @@ export default function ReadingPage() {
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex-grow container mx-auto p-4 overflow-y-auto pb-28 sm:pb-24">
-        {/* Page content will appear here. */}
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                "flex animate-in fade-in slide-in-from-bottom-5 duration-300 ease-out",
+                message.sender === 'user' ? 'justify-end' : 'justify-start'
+              )}
+            >
+              <div
+                className={cn(
+                  "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg p-3 rounded-2xl shadow-md",
+                  message.sender === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-card text-card-foreground rounded-bl-none' // For potential AI messages later
+                )}
+              >
+                <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Fixed input bar at the bottom */}
@@ -47,7 +92,7 @@ export default function ReadingPage() {
           <Button
             onClick={handleSend}
             disabled={inputValue.trim() === ''}
-            className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center"
+            className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
             aria-label="Send message"
           >
             <SendIcon className="h-5 w-5" />
