@@ -16,6 +16,7 @@ interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   isLoading?: boolean;
+  evaluationDetails?: EvaluateUserAnswerOutput; // Added for structured evaluation
 }
 
 type ReadingState = 'idle' | 'awaiting_answer' | 'evaluating' | 'error';
@@ -29,22 +30,29 @@ export default function ReadingPage() {
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [readingState, setReadingState] = useState<ReadingState>('idle');
-  const [isLoading, setIsLoading] = useState(false); // General loading for input disabling
-  const [isAISpeaking, setIsAISpeaking] = useState(false); // Tracks if AI is generating a response
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isAISpeaking, setIsAISpeaking] = useState(false); 
 
-  const addMessage = (text: string, sender: 'user' | 'ai', isLoadingMsg: boolean = false) => {
+  const addMessage = (
+    text: string,
+    sender: 'user' | 'ai',
+    isLoadingMsg: boolean = false,
+    evaluationDetails?: EvaluateUserAnswerOutput
+  ) => {
     const newMessage: Message = {
-      id: Date.now().toString() + Math.random(), 
+      id: Date.now().toString() + Math.random(),
       text,
       sender,
       timestamp: new Date(),
       isLoading: isLoadingMsg,
+      evaluationDetails,
     };
     setMessages(prevMessages => {
       if (isLoadingMsg && sender === 'ai') {
         const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
         return [...filteredMessages, newMessage];
       }
+      // Remove any existing loading AI message before adding the new final AI message
       const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
@@ -52,17 +60,17 @@ export default function ReadingPage() {
 
   const fetchNews = async () => {
     setIsLoading(true);
-    setReadingState('idle'); 
+    setReadingState('idle');
     addMessage("Fetching a news article and questions for you...", 'ai', true);
     setIsAISpeaking(true);
     try {
-      const result: GetNewsAndQuestionsOutput = await getNewsAndQuestions({}); 
-      
-      setCurrentArticle(result.article); 
+      const result: GetNewsAndQuestionsOutput = await getNewsAndQuestions({});
+
+      setCurrentArticle(result.article);
       setCurrentQuestions(result.questions);
       setCurrentQuestionIndex(0);
-      
-      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai'))); 
+
+      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
 
       let articleDisplay = "";
       if (result.articleSource) articleDisplay += `Source: ${result.articleSource}\n`;
@@ -70,10 +78,10 @@ export default function ReadingPage() {
          articleDisplay += `Published on: ${result.articleDate}\n`;
       }
       if (result.articleUrl) articleDisplay += `URL: ${result.articleUrl}\n`;
-      
+
       if (articleDisplay.length > 0) articleDisplay += "\n";
-      
-      articleDisplay += result.article; 
+
+      articleDisplay += result.article;
 
       addMessage(articleDisplay.trim(), 'ai');
 
@@ -118,27 +126,31 @@ export default function ReadingPage() {
     const userText = inputValue.trim();
     addMessage(userText, 'user');
     setInputValue('');
-    
-    setIsLoading(true); 
+
+    setIsLoading(true);
     setIsAISpeaking(true);
 
     try {
       if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
         setReadingState('evaluating');
         addMessage("Evaluating your answer...", 'ai', true);
-        
+
         const evaluationInput: EvaluateUserAnswerInput = {
-          article: currentArticle, 
+          article: currentArticle,
           question: currentQuestions[currentQuestionIndex],
           userAnswer: userText,
         };
 
         try {
           const evaluationResult = await evaluateUserAnswer(evaluationInput);
-          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai'))); // Remove "Evaluating..."
 
-          let feedbackText = `Evaluation: ${evaluationResult.isCorrect ? 'Correct!' : 'Needs review.'}\nFeedback: ${evaluationResult.feedback}\nGrammar: ${evaluationResult.grammarFeedback}`;
-          addMessage(feedbackText, 'ai');
+          addMessage(
+            "Here's the evaluation of your answer:", // Main text for the message bubble
+            'ai',
+            false,
+            evaluationResult // Pass the details here
+          );
 
           const nextQuestionIndex = currentQuestionIndex + 1;
           if (nextQuestionIndex < currentQuestions.length) {
@@ -147,7 +159,7 @@ export default function ReadingPage() {
             setReadingState('awaiting_answer');
           } else {
             addMessage("You've answered all questions for this article! Would you like to try another one, or do you have any questions about this article?", 'ai');
-            setReadingState('idle'); 
+            setReadingState('idle');
           }
         } catch (error) {
           console.error("Error evaluating answer:", error);
@@ -155,31 +167,29 @@ export default function ReadingPage() {
           addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
           setReadingState('error');
         } finally {
-          // Specific to this block's async operations
           setIsLoading(false);
           setIsAISpeaking(false);
         }
       } else if (readingState === 'idle' || readingState === 'error') {
           const lowerUserText = userText.toLowerCase();
           const newArticleKeywords = ["new article", "another article", "fetch news", "next one", "try another", "get news", "new news"];
-          
+
           let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
           if (!isRequestingNew && messages.length > 0) {
-            const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai');
-            if (lastAiMessage && lastAiMessage.text.toLowerCase().includes("another one") && lowerUserText === "yes") {
+            const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai' && !m.isLoading && !m.evaluationDetails);
+            if (lastAiMessage && lastAiMessage.text.toLowerCase().includes("another one") && (lowerUserText === "yes" || lowerUserText === "ok" || lowerUserText === "sure") ) {
               isRequestingNew = true;
             }
           }
 
           if (isRequestingNew) {
-              await fetchNews(); 
-              // fetchNews handles its own setIsLoading and setIsAISpeaking in its finally block.
-              // No need to set them here again, and handleSend's finally block won't run due to async.
-              return; 
+              await fetchNews();
+              return;
           } else if (currentArticle) {
               addMessage("Thinking...", 'ai', true);
               try {
-                  const queryResult = await answerArticleQuery({ article: currentArticle, userQuery: userText });
+                  const queryInput: AnswerArticleQueryInput = { article: currentArticle, userQuery: userText };
+                  const queryResult = await answerArticleQuery(queryInput);
                   setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
                   addMessage(queryResult.answer, 'ai');
                   addMessage("Do you have any other questions about this article, or would you like a new one?", 'ai');
@@ -190,7 +200,6 @@ export default function ReadingPage() {
                   addMessage("Sorry, I couldn't answer your question about the article right now.", 'ai');
                   setReadingState('error');
               } finally {
-                // Specific to this block's async operations
                 setIsLoading(false);
                 setIsAISpeaking(false);
               }
@@ -198,24 +207,21 @@ export default function ReadingPage() {
               setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
               addMessage("I'm not sure how to help with that. Would you like me to fetch a news article?", 'ai');
               setReadingState('idle');
-              // Also set loading false for this direct path
               setIsLoading(false);
               setIsAISpeaking(false);
           }
       } else {
-        // Fallback if somehow in an unexpected state, reset loading flags.
         setIsLoading(false);
         setIsAISpeaking(false);
       }
     } catch (e) {
-        // Catch any unhandled errors from the main try block
         console.error("Outer error in handleSend:", e);
+        setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
         addMessage("An unexpected error occurred.", "ai");
         setIsLoading(false);
         setIsAISpeaking(false);
         setReadingState('error');
     }
-    // General finally for handleSend is removed; each branch now manages its own loading state changes.
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -224,14 +230,14 @@ export default function ReadingPage() {
       handleSend();
     }
   };
-  
+
   const sendButtonContent = () => {
-    if ((isLoading || isAISpeaking) && (readingState !== 'awaiting_answer' || readingState === 'evaluating')) {
+    if (isLoading || isAISpeaking) { // Simplified condition
       return <Loader2 className="h-5 w-5 animate-spin" />;
     }
     return <SendIcon className="h-5 w-5" />;
   };
-  
+
   const inputPlaceholder = () => {
     if (isLoading || isAISpeaking) return "AI is working...";
     if (readingState === 'awaiting_answer') return "Type your answer...";
@@ -257,13 +263,37 @@ export default function ReadingPage() {
                   message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card text-card-foreground rounded-bl-none',
-                  message.isLoading && message.sender === 'ai' && 'italic text-muted-foreground'
+                   // No italic for loading, handled by Loader2 presence
                 )}
               >
                 {message.isLoading && message.sender === 'ai' ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>{message.text}</span>
+                  </div>
+                ) : message.evaluationDetails ? (
+                  <div className="space-y-2 text-sm">
+                    <p className="break-words whitespace-pre-wrap font-medium">{message.text}</p>
+                    
+                    <div className={cn(
+                      "p-2.5 rounded-lg shadow", // Added shadow for better pop
+                      message.evaluationDetails.isCorrect 
+                        ? "bg-green-100 text-green-900 dark:bg-green-700 dark:text-green-100" 
+                        : "bg-yellow-100 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-100"
+                    )}>
+                      <strong className="font-semibold block mb-1">Evaluation:</strong> 
+                      <span className="whitespace-pre-wrap">{message.evaluationDetails.isCorrect ? 'Correct!' : 'Needs review.'}</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg shadow bg-blue-100 text-blue-900 dark:bg-blue-700 dark:text-blue-100">
+                      <strong className="font-semibold block mb-1">Feedback:</strong> 
+                      <span className="whitespace-pre-wrap">{message.evaluationDetails.feedback}</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg shadow bg-indigo-100 text-indigo-900 dark:bg-indigo-700 dark:text-indigo-100">
+                      <strong className="font-semibold block mb-1">Grammar:</strong> 
+                      <span className="whitespace-pre-wrap">{message.evaluationDetails.grammarFeedback}</span>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
