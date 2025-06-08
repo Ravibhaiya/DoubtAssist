@@ -17,9 +17,6 @@ export default function ReadingPage() {
           - On mobile (smaller than sm): 4.5rem = 3.5rem (input height) + 0.5rem (top padding of fixed bar) + 0.5rem (bottom padding of fixed bar)
           - On sm and larger screens: 5.5rem = 3.5rem (input height) + 1rem (top padding of fixed bar) + 1rem (bottom padding of fixed bar)
         */}
-        <p className="text-center text-muted-foreground">
-          Paste or type your text in the input field below. Your conversation or the content analysis will appear here.
-        </p>
         {/* Example content to demonstrate scrolling:
         <div className="space-y-4 mt-4">
           {Array.from({ length: 30 }).map((_, i) => (
