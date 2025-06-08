@@ -47,7 +47,8 @@ export default function ReadingPage() {
           <Button
             onClick={handleSend}
             disabled={inputValue.trim() === ''}
-            className="h-10 w-10 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center"
+            className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center"
+            aria-label="Send message"
           >
             <SendIcon className="h-5 w-5" />
           </Button>
