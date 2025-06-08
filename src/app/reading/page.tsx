@@ -7,7 +7,8 @@ import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } fro
 import { Send as SendIcon, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { getNewsAndQuestions, type GetNewsAndQuestionsOutput } from '@/ai/flows/readingComprehensionFlow';
-import { evaluateUserAnswer, type EvaluateUserAnswerInput } from '@/ai/flows/evaluateAnswerFlow';
+import { evaluateUserAnswer, type EvaluateUserAnswerInput, type EvaluateUserAnswerOutput } from '@/ai/flows/evaluateAnswerFlow';
+import { answerArticleQuery, type AnswerArticleQueryInput, type AnswerArticleQueryOutput } from '@/ai/flows/answerArticleQueryFlow';
 
 interface Message {
   id: string;
@@ -28,8 +29,8 @@ export default function ReadingPage() {
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [readingState, setReadingState] = useState<ReadingState>('idle');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // General loading for input disabling
+  const [isAISpeaking, setIsAISpeaking] = useState(false); // Tracks if AI is generating a response
 
   const addMessage = (text: string, sender: 'user' | 'ai', isLoadingMsg: boolean = false) => {
     const newMessage: Message = {
@@ -40,11 +41,10 @@ export default function ReadingPage() {
       isLoading: isLoadingMsg,
     };
     setMessages(prevMessages => {
-      if (isLoadingMsg && sender === 'ai') { // Only AI messages should show as loading type
+      if (isLoadingMsg && sender === 'ai') {
         const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
         return [...filteredMessages, newMessage];
       }
-      // For user messages or final AI messages, remove any existing loading message
       const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
@@ -115,58 +115,107 @@ export default function ReadingPage() {
   const handleSend = async () => {
     if (inputValue.trim() === '' || isLoading || isAISpeaking) return;
 
-    const userAnswerText = inputValue.trim();
-    addMessage(userAnswerText, 'user');
+    const userText = inputValue.trim();
+    addMessage(userText, 'user');
     setInputValue('');
     
-    // Set loading true for AI response part
     setIsLoading(true); 
     setIsAISpeaking(true);
 
-    if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
-      setReadingState('evaluating');
-      addMessage("Evaluating your answer...", 'ai', true);
-      
-      const evaluationInput: EvaluateUserAnswerInput = {
-        article: currentArticle, 
-        question: currentQuestions[currentQuestionIndex],
-        userAnswer: userAnswerText,
-      };
+    try {
+      if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
+        setReadingState('evaluating');
+        addMessage("Evaluating your answer...", 'ai', true);
+        
+        const evaluationInput: EvaluateUserAnswerInput = {
+          article: currentArticle, 
+          question: currentQuestions[currentQuestionIndex],
+          userAnswer: userText,
+        };
 
-      try {
-        const evaluationResult = await evaluateUserAnswer(evaluationInput);
-        setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+        try {
+          const evaluationResult = await evaluateUserAnswer(evaluationInput);
+          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
 
-        let feedbackText = `Evaluation: ${evaluationResult.isCorrect ? 'Correct!' : 'Needs review.'}\nFeedback: ${evaluationResult.feedback}\nGrammar: ${evaluationResult.grammarFeedback}`;
-        addMessage(feedbackText, 'ai');
+          let feedbackText = `Evaluation: ${evaluationResult.isCorrect ? 'Correct!' : 'Needs review.'}\nFeedback: ${evaluationResult.feedback}\nGrammar: ${evaluationResult.grammarFeedback}`;
+          addMessage(feedbackText, 'ai');
 
-        const nextQuestionIndex = currentQuestionIndex + 1;
-        if (nextQuestionIndex < currentQuestions.length) {
-          setCurrentQuestionIndex(nextQuestionIndex);
-          addMessage(currentQuestions[nextQuestionIndex], 'ai');
-          setReadingState('awaiting_answer');
-        } else {
-          addMessage("You've answered all questions for this article! Would you like to try another one?", 'ai');
-          setReadingState('idle'); 
+          const nextQuestionIndex = currentQuestionIndex + 1;
+          if (nextQuestionIndex < currentQuestions.length) {
+            setCurrentQuestionIndex(nextQuestionIndex);
+            addMessage(currentQuestions[nextQuestionIndex], 'ai');
+            setReadingState('awaiting_answer');
+          } else {
+            addMessage("You've answered all questions for this article! Would you like to try another one, or do you have any questions about this article?", 'ai');
+            setReadingState('idle'); 
+          }
+        } catch (error) {
+          console.error("Error evaluating answer:", error);
+          setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+          addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
+          setReadingState('error');
+        } finally {
+          // Specific to this block's async operations
+          setIsLoading(false);
+          setIsAISpeaking(false);
         }
-      } catch (error) {
-        console.error("Error evaluating answer:", error);
-        setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-        addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
-        setReadingState('error');
-      } finally {
-        // Only set loading to false when AI processing is done
+      } else if (readingState === 'idle' || readingState === 'error') {
+          const lowerUserText = userText.toLowerCase();
+          const newArticleKeywords = ["new article", "another article", "fetch news", "next one", "try another", "get news", "new news"];
+          
+          let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
+          if (!isRequestingNew && messages.length > 0) {
+            const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai');
+            if (lastAiMessage && lastAiMessage.text.toLowerCase().includes("another one") && lowerUserText === "yes") {
+              isRequestingNew = true;
+            }
+          }
+
+          if (isRequestingNew) {
+              await fetchNews(); 
+              // fetchNews handles its own setIsLoading and setIsAISpeaking in its finally block.
+              // No need to set them here again, and handleSend's finally block won't run due to async.
+              return; 
+          } else if (currentArticle) {
+              addMessage("Thinking...", 'ai', true);
+              try {
+                  const queryResult = await answerArticleQuery({ article: currentArticle, userQuery: userText });
+                  setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+                  addMessage(queryResult.answer, 'ai');
+                  addMessage("Do you have any other questions about this article, or would you like a new one?", 'ai');
+                  setReadingState('idle');
+              } catch (error) {
+                  console.error("Error answering article query:", error);
+                  setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+                  addMessage("Sorry, I couldn't answer your question about the article right now.", 'ai');
+                  setReadingState('error');
+              } finally {
+                // Specific to this block's async operations
+                setIsLoading(false);
+                setIsAISpeaking(false);
+              }
+          } else {
+              setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
+              addMessage("I'm not sure how to help with that. Would you like me to fetch a news article?", 'ai');
+              setReadingState('idle');
+              // Also set loading false for this direct path
+              setIsLoading(false);
+              setIsAISpeaking(false);
+          }
+      } else {
+        // Fallback if somehow in an unexpected state, reset loading flags.
         setIsLoading(false);
         setIsAISpeaking(false);
       }
-    } else if (readingState === 'idle' || readingState === 'error') {
-        // User is prompting to fetch news again
-        await fetchNews(); 
-        // fetchNews handles its own setIsLoading/isAISpeaking internally for its messages
-        // but we ensure the input bar is usable after this action sequence
+    } catch (e) {
+        // Catch any unhandled errors from the main try block
+        console.error("Outer error in handleSend:", e);
+        addMessage("An unexpected error occurred.", "ai");
         setIsLoading(false);
         setIsAISpeaking(false);
+        setReadingState('error');
     }
+    // General finally for handleSend is removed; each branch now manages its own loading state changes.
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -175,22 +224,18 @@ export default function ReadingPage() {
       handleSend();
     }
   };
-
-  // Determine if the send button should show loader or icon
+  
   const sendButtonContent = () => {
-    // Show loader if:
-    // 1. Overall isLoading is true (meaning an AI operation is in progress) AND
-    // 2. EITHER it's not specifically 'awaiting_answer' state (i.e., initial load, or error recovery fetch)
-    //    OR it is 'evaluating' (meaning user answered, now AI is working)
-    if (isLoading && (readingState !== 'awaiting_answer' || readingState === 'evaluating')) {
+    if ((isLoading || isAISpeaking) && (readingState !== 'awaiting_answer' || readingState === 'evaluating')) {
       return <Loader2 className="h-5 w-5 animate-spin" />;
     }
     return <SendIcon className="h-5 w-5" />;
   };
   
   const inputPlaceholder = () => {
-    if (isLoading && isAISpeaking) return "AI is working...";
+    if (isLoading || isAISpeaking) return "AI is working...";
     if (readingState === 'awaiting_answer') return "Type your answer...";
+    if (currentArticle) return "Ask about the article or request a new one";
     return "Type here or press send for news";
   }
 
@@ -212,7 +257,7 @@ export default function ReadingPage() {
                   message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card text-card-foreground rounded-bl-none',
-                  message.isLoading && message.sender === 'ai' && 'italic text-muted-foreground' // Apply only if AI is loading
+                  message.isLoading && message.sender === 'ai' && 'italic text-muted-foreground'
                 )}
               >
                 {message.isLoading && message.sender === 'ai' ? (
