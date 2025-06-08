@@ -38,7 +38,7 @@ export type NewsArticle = z.infer<typeof NewsArticleSchema>;
 export const fetchNewsArticleTool = ai.defineTool(
   {
     name: 'fetchNewsArticle',
-    description: 'Fetches a single, very recent news article (from today or yesterday) using NewsData.io, based on a query and optional preferred domains. If no domains are preferred, searches all available sources. Prioritizes Indian sources like The Hindu or Times of India if specific hints leading to those domains are provided to the calling flow.',
+    description: 'Fetches a single, recent news article using NewsData.io, based on a query and optional preferred domains. If no domains are preferred, searches all available sources. Prioritizes Indian sources like The Hindu or Times of India if specific hints leading to those domains are provided to the calling flow.',
     inputSchema: FetchNewsArticleInputSchema,
     outputSchema: NewsArticleSchema.nullable(),
   },
@@ -48,17 +48,10 @@ export const fetchNewsArticleTool = ai.defineTool(
       return null;
     }
 
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const formatDate = (date: Date) => date.toISOString().split('T')[0]; // YYYY-MM-DD
-
     const params = new URLSearchParams({
       apikey: newsDataApiKey,
       q: input.query || 'India current events',
       language: 'en',
-      from_date: formatDate(yesterday),
-      to_date: formatDate(today),
       // full_content: '1', // Request full content if available - NewsData.io param
       // prioritydomain: 'top', // Prioritize results from top domains - NewsData.io param
     });
@@ -97,25 +90,16 @@ export const fetchNewsArticleTool = ai.defineTool(
         for (const article of sortedArticles) {
           // Basic validation of required fields
           if (article.title && (article.description || article.content) && article.link && article.pubDate && article.source_id) {
-            // Ensure article date is within the search range
             const articleDateObj = new Date(article.pubDate.replace(' ', 'T') + 'Z'); // Convert YYYY-MM-DD HH:MM:SS to ISO parsable
-            const searchStartDate = new Date(formatDate(yesterday) + "T00:00:00.000Z");
-            const searchEndDate = new Date(formatDate(today) + "T23:59:59.999Z");
-
-            if (articleDateObj >= searchStartDate && articleDateObj <= searchEndDate) {
-              // console.log("Found suitable article from NewsData.io:", article.title, "Published:", article.pubDate);
-              return {
-                title: article.title,
-                description: article.description || '',
-                url: article.link, // map link to url
-                publishedAt: articleDateObj.toISOString(), // map pubDate to publishedAt (ISO format)
-                sourceName: article.source_id, // map source_id to sourceName
-                content: article.content || article.description || '', // prefer content, fallback to description
-              };
-            }
-            // else {
-            //   console.log("Article from NewsData.io skipped due to date mismatch:", article.title, "Published:", article.pubDate);
-            // }
+            // console.log("Found suitable article from NewsData.io:", article.title, "Published:", article.pubDate);
+            return {
+              title: article.title,
+              description: article.description || '',
+              url: article.link, // map link to url
+              publishedAt: articleDateObj.toISOString(), // map pubDate to publishedAt (ISO format)
+              sourceName: article.source_id, // map source_id to sourceName
+              content: article.content || article.description || '', // prefer content, fallback to description
+            };
           }
         }
       }
@@ -127,3 +111,4 @@ export const fetchNewsArticleTool = ai.defineTool(
     }
   }
 );
+

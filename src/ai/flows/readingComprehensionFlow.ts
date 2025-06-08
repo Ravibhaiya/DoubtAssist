@@ -64,7 +64,7 @@ Your tasks are:
 2.  **Output Format:** Ensure your entire response is a single JSON object matching the GetNewsAndQuestionsOutputSchema.
 
 Focus on using the provided text ('Full Content' or 'Description Snippet') for summarization. Do not invent details.
-CRITICAL: Ensure the article summarization and questions are based *only* on the provided 'toolOutput'.
+CRITICAL: Ensure the article summarization and questions are based *only* on the provided 'toolOutput'. The article should be generally recent and suitable for a reading comprehension exercise.
 `,
 });
 
@@ -120,3 +120,4 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
 export async function getNewsAndQuestions(input: GetNewsAndQuestionsInput): Promise<GetNewsAndQuestionsOutput> {
   return getNewsAndQuestionsFlow(input);
 }
+
