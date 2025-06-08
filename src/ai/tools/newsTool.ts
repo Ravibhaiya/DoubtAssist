@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview A Genkit tool to fetch recent news articles using NewsData.io.
  *
@@ -20,7 +19,7 @@ if (!newsDataApiKey) {
   );
 }
 
-const FetchNewsArticleInputSchema = z.object({
+export const FetchNewsArticleInputSchema = z.object({
   query: z.string().optional().describe("Keywords or a phrase to search for in news articles. Defaults to 'India current events' if not provided."),
   preferredDomains: z.array(z.string()).optional().describe("A list of preferred news source domains (e.g., 'thehindu.com', 'timesofindia.indiatimes.com'). The tool will try to fetch from these if specified."),
 });
