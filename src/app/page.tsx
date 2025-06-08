@@ -10,7 +10,7 @@ export default function Home() {
       <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
         <Link href="/reading" passHref>
           <Button
-            asChild={false} // Ensure Button doesn't act as a slot for Link's <a>
+            asChild={true} 
             className="px-8 py-7 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] w-full sm:w-auto hover:bg-primary/90 transition-colors duration-150 ease-in-out"
           >
             Reading and comprehension
