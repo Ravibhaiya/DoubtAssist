@@ -21,7 +21,7 @@ const GetNewsAndQuestionsOutputSchema = z.object({
   article: z.string().describe('A summarized news article in English, approximately 100-200 words long. If no article can be found or summarized, this field should state that.'),
   articleDate: z.string().describe('The publication date of the news article (e.g., "YYYY-MM-DD"). If no article is found, this can be "N/A".'),
   questions: z.array(z.string()).min(1).max(2).describe('An array of 1 to 2 comprehension questions based on the article. If no article, this might contain a general follow-up question.'),
-  articleUrl: z.string().optional().describe("The URL of the original news article, if available. This should be a valid URL string."),
+  articleUrl: z.string().optional().describe("The URL of the original news article, if available. This should be a valid URL string."), // No .url() here
   articleSource: z.string().optional().describe("The source ID/name of the news article (e.g., 'thehindu', 'timesofindia'), if available."),
 });
 export type GetNewsAndQuestionsOutput = z.infer<typeof GetNewsAndQuestionsOutputSchema>;
@@ -64,7 +64,7 @@ Your tasks are:
 2.  **Output Format:** Ensure your entire response is a single JSON object matching the GetNewsAndQuestionsOutputSchema.
 
 Focus on using the provided text ('Full Content' or 'Description Snippet') for summarization. Do not invent details.
-CRITICAL: Ensure the article summarization and questions are based *only* on the provided 'toolOutput'. The article should be generally recent and suitable for a reading comprehension exercise.
+Ensure the article summarization and questions are based *only* on the provided 'toolOutput'. The article should be generally recent and suitable for a reading comprehension exercise.
 `,
 });
 
@@ -104,6 +104,7 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
       };
     }
 
+    // Ensure questions array is always present and has at least one item
     if (!output.questions || output.questions.length === 0) {
       return {
         article: output.article || "I couldn't fetch an article right now. Please try again later.",
@@ -120,4 +121,3 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
 export async function getNewsAndQuestions(input: GetNewsAndQuestionsInput): Promise<GetNewsAndQuestionsOutput> {
   return getNewsAndQuestionsFlow(input);
 }
-

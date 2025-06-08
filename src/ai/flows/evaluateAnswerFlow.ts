@@ -21,7 +21,7 @@ export type EvaluateUserAnswerInput = z.infer<typeof EvaluateUserAnswerInputSche
 const EvaluateUserAnswerOutputSchema = z.object({
   isCorrect: z.boolean().describe("Whether the user's answer is substantially correct based *only* on the provided article text."),
   feedback: z.string().describe("A brief explanation for why the answer is correct or incorrect, referencing the article's content."),
-  grammarFeedback: z.string().describe("Brief, constructive feedback on the user's grammar. If grammar is incorrect, explain *why* it's incorrect by identifying the specific grammatical rule or principle that was violated (e.g., 'subject-verb agreement error: the verb should agree with the subject in number. \"He go\" should be \"he goes\".', 'incorrect tense: \"I have went\" uses the past participle with \"have\" when the simple past \"went\" or present perfect \"have gone\" is required for the context.'). Suggest a clear correction. If grammar is perfect, say so."),
+  grammarFeedback: z.string().describe("Brief, constructive feedback on the user's grammar. If grammar is incorrect, you MUST explain *why* it's incorrect by identifying the specific grammatical rule or principle that was violated (e.g., 'subject-verb agreement error: the verb should agree with the subject in number. \"He go\" should be \"he goes\".', 'incorrect tense: \"I have went\" uses the past participle with \"have\" when the simple past \"went\" or present perfect \"have gone\" is required for the context.', 'wrong preposition: \"depend on\" not \"depend in\"'). Suggest a clear correction. If grammar is perfect, say so."),
 });
 export type EvaluateUserAnswerOutput = z.infer<typeof EvaluateUserAnswerOutputSchema>;
 
@@ -35,8 +35,12 @@ You have been provided with a news article, a question about that article, and a
 Your tasks are:
 1. Evaluate if the user's answer is correct. The answer must be based *solely* on the information explicitly or implicitly available in the provided article text. Do not use external knowledge.
 2. Provide a brief explanation for your evaluation (why it's correct or incorrect).
-3. Provide brief, constructive feedback on the user's grammar in their answer. If grammar is incorrect, you MUST explain *why* it's incorrect by identifying the specific grammatical rule or principle that was violated (e.g., 'subject-verb agreement error: the verb should agree with the subject in number. "He go" should be "he goes".', 'incorrect tense: "I have went" uses the past participle with "have" when the simple past "went" or present perfect "have gone" is required for the context.', 'wrong preposition: "depend on" not "depend in"'). Suggest a clear correction. If grammar is perfect, say so.
-
+3. Provide detailed, constructive feedback on the user's grammar in their answer.
+   If grammar is incorrect:
+     a. Clearly state what is wrong.
+     b. Explain *why* it's incorrect by identifying the specific grammatical rule or principle violated (e.g., 'subject-verb agreement error: the verb "go" does not agree with the singular subject "He".', 'incorrect tense: "have went" is not the correct formation for present perfect; it should be "have gone" or the simple past "went".', 'wrong preposition: "depend in" is incorrect; the idiomatic expression is "depend on".').
+     c. Suggest a clear correction (e.g., "The sentence should be 'He goes.'", "Use 'I have gone' or 'I went.'", "It should be 'depend on the weather.'").
+   If grammar is perfect, explicitly state that (e.g., "Grammar is perfect." or "No grammatical errors found.").
 
 Original News Article:
 '''

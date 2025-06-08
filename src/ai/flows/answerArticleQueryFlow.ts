@@ -11,13 +11,13 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
-export const AnswerArticleQueryInputSchema = z.object({
+const AnswerArticleQueryInputSchema = z.object({
   article: z.string().describe('The news article text.'),
   userQuery: z.string().describe("The user's question about the article."),
 });
 export type AnswerArticleQueryInput = z.infer<typeof AnswerArticleQueryInputSchema>;
 
-export const AnswerArticleQueryOutputSchema = z.object({
+const AnswerArticleQueryOutputSchema = z.object({
   answer: z.string().describe('The answer to the user query, based *only* on the provided article. If the answer is not in the article, state that clearly.'),
 });
 export type AnswerArticleQueryOutput = z.infer<typeof AnswerArticleQueryOutputSchema>;
