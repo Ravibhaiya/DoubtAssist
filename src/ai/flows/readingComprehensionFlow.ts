@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow to fetch a short news article and generate comprehension questions.
@@ -10,12 +11,12 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GetNewsAndQuestionsInputSchema = z.object({
+const GetNewsAndQuestionsInputSchema = z.object({
   sourceHint: z.string().optional().describe("Optional hint for the news source, e.g., 'The Hindu' or 'Times of India'"),
 });
 export type GetNewsAndQuestionsInput = z.infer<typeof GetNewsAndQuestionsInputSchema>;
 
-export const GetNewsAndQuestionsOutputSchema = z.object({
+const GetNewsAndQuestionsOutputSchema = z.object({
   article: z.string().describe('A summarized news article in English, approximately 100-200 words long.'),
   questions: z.array(z.string()).min(1).max(2).describe('An array of 1 to 2 comprehension questions based on the article.'),
 });

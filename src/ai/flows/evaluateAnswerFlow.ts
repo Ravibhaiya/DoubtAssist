@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow to evaluate a user's answer to a comprehension question and check grammar.
@@ -10,14 +11,14 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const EvaluateUserAnswerInputSchema = z.object({
+const EvaluateUserAnswerInputSchema = z.object({
   article: z.string().describe('The original news article provided to the user.'),
   question: z.string().describe('The comprehension question asked to the user.'),
   userAnswer: z.string().describe("The user's answer to the question."),
 });
 export type EvaluateUserAnswerInput = z.infer<typeof EvaluateUserAnswerInputSchema>;
 
-export const EvaluateUserAnswerOutputSchema = z.object({
+const EvaluateUserAnswerOutputSchema = z.object({
   isCorrect: z.boolean().describe("Whether the user's answer is substantially correct based *only* on the provided article text."),
   feedback: z.string().describe("A brief explanation for why the answer is correct or incorrect, referencing the article's content."),
   grammarFeedback: z.string().describe("Brief, constructive feedback on the user's grammar in their answer. If grammar is perfect, say so."),
