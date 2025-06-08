@@ -25,6 +25,7 @@ export default function ReadingPage() {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   const [currentArticle, setCurrentArticle] = useState<string | null>(null);
+  const [currentArticleDate, setCurrentArticleDate] = useState<string | null>(null);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [readingState, setReadingState] = useState<ReadingState>('idle');
@@ -60,13 +61,16 @@ export default function ReadingPage() {
     try {
       const result = await getNewsAndQuestions({});
       setCurrentArticle(result.article);
+      setCurrentArticleDate(result.articleDate);
       setCurrentQuestions(result.questions);
       setCurrentQuestionIndex(0);
       
       // Remove loading message
       setMessages(prev => prev.filter(m => !m.isLoading));
 
-      addMessage(result.article, 'ai');
+      const articleTextWithDate = `Published on: ${result.articleDate || 'N/A'}\n\n${result.article}`;
+      addMessage(articleTextWithDate, 'ai');
+
       if (result.questions.length > 0) {
         addMessage(result.questions[0], 'ai');
         setReadingState('awaiting_answer');
@@ -115,7 +119,7 @@ export default function ReadingPage() {
       addMessage("Evaluating your answer...", 'ai', true);
       
       const evaluationInput: EvaluateUserAnswerInput = {
-        article: currentArticle,
+        article: currentArticle, // No need to send date for evaluation
         question: currentQuestions[currentQuestionIndex],
         userAnswer: userAnswerText,
       };
