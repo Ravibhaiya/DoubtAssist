@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { Send as SendIcon } from 'lucide-react'; // Import the Send icon
+import { Send as SendIcon } from 'lucide-react';
 
 export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
@@ -33,6 +33,7 @@ export default function ReadingPage() {
         {/* Page content will appear here. */}
       </div>
 
+      {/* Fixed input bar at the bottom */}
       <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 py-2 px-2 z-[60] border-t border-border">
         <div className="flex items-center gap-2 max-w-xs mx-auto bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out">
           <Input
@@ -46,9 +47,9 @@ export default function ReadingPage() {
           <Button
             onClick={handleSend}
             disabled={inputValue.trim() === ''}
-            className="h-9 w-9 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center" // Adjusted width, removed text-sm, font-bold, added flex for icon centering
+            className="h-10 w-10 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-colors duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center"
           >
-            <SendIcon className="h-4 w-4" /> {/* Add Send icon */}
+            <SendIcon className="h-5 w-5" />
           </Button>
         </div>
       </div>
