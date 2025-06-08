@@ -25,7 +25,6 @@ export default function ReadingPage() {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   const [currentArticle, setCurrentArticle] = useState<string | null>(null);
-  // currentArticleDate, Url, Source are now part of the GetNewsAndQuestionsOutput and handled in display
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [readingState, setReadingState] = useState<ReadingState>('idle');
@@ -34,46 +33,47 @@ export default function ReadingPage() {
 
   const addMessage = (text: string, sender: 'user' | 'ai', isLoadingMsg: boolean = false) => {
     const newMessage: Message = {
-      id: Date.now().toString() + Math.random(), // Simple unique ID
+      id: Date.now().toString() + Math.random(), 
       text,
       sender,
       timestamp: new Date(),
       isLoading: isLoadingMsg,
     };
     setMessages(prevMessages => {
-      if (isLoadingMsg) {
+      if (isLoadingMsg && sender === 'ai') { // Only AI messages should show as loading type
         const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
         return [...filteredMessages, newMessage];
       }
-      const filteredMessages = prevMessages.filter(msg => !msg.isLoading);
+      // For user messages or final AI messages, remove any existing loading message
+      const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
   };
 
   const fetchNews = async () => {
     setIsLoading(true);
-    setReadingState('idle'); // Reset state before fetching
+    setReadingState('idle'); 
     addMessage("Fetching a news article and questions for you...", 'ai', true);
     setIsAISpeaking(true);
     try {
-      const result: GetNewsAndQuestionsOutput = await getNewsAndQuestions({}); // Pass empty for default behavior or add sourceHint if needed
+      const result: GetNewsAndQuestionsOutput = await getNewsAndQuestions({}); 
       
-      setCurrentArticle(result.article); // This is now the summary
-      // currentArticleDate, Url, Source are now directly in 'result'
+      setCurrentArticle(result.article); 
       setCurrentQuestions(result.questions);
       setCurrentQuestionIndex(0);
       
-      setMessages(prev => prev.filter(m => !m.isLoading)); // Remove loading message
+      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai'))); 
 
       let articleDisplay = "";
       if (result.articleSource) articleDisplay += `Source: ${result.articleSource}\n`;
-      if (result.articleDate && result.articleDate !== "N/A") articleDisplay += `Published on: ${result.articleDate}\n`;
+      if (result.articleDate && result.articleDate !== "N/A") {
+         articleDisplay += `Published on: ${result.articleDate}\n`;
+      }
       if (result.articleUrl) articleDisplay += `URL: ${result.articleUrl}\n`;
       
-      // Add a separator if metadata exists
       if (articleDisplay.length > 0) articleDisplay += "\n";
       
-      articleDisplay += result.article; // The summarized article content
+      articleDisplay += result.article; 
 
       addMessage(articleDisplay.trim(), 'ai');
 
@@ -86,7 +86,7 @@ export default function ReadingPage() {
       }
     } catch (error) {
       console.error("Error fetching news:", error);
-      setMessages(prev => prev.filter(m => !m.isLoading));
+      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
       addMessage("Sorry, I couldn't fetch news right now. Please try again later.", 'ai');
       setReadingState('error');
     } finally {
@@ -118,6 +118,8 @@ export default function ReadingPage() {
     const userAnswerText = inputValue.trim();
     addMessage(userAnswerText, 'user');
     setInputValue('');
+    
+    // Set loading true for AI response part
     setIsLoading(true); 
     setIsAISpeaking(true);
 
@@ -126,14 +128,14 @@ export default function ReadingPage() {
       addMessage("Evaluating your answer...", 'ai', true);
       
       const evaluationInput: EvaluateUserAnswerInput = {
-        article: currentArticle, // currentArticle is the AI summary, which is what evaluation should be based on
+        article: currentArticle, 
         question: currentQuestions[currentQuestionIndex],
         userAnswer: userAnswerText,
       };
 
       try {
         const evaluationResult = await evaluateUserAnswer(evaluationInput);
-        setMessages(prev => prev.filter(m => !m.isLoading));
+        setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
 
         let feedbackText = `Evaluation: ${evaluationResult.isCorrect ? 'Correct!' : 'Needs review.'}\nFeedback: ${evaluationResult.feedback}\nGrammar: ${evaluationResult.grammarFeedback}`;
         addMessage(feedbackText, 'ai');
@@ -149,18 +151,20 @@ export default function ReadingPage() {
         }
       } catch (error) {
         console.error("Error evaluating answer:", error);
-        setMessages(prev => prev.filter(m => !m.isLoading));
+        setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
         addMessage("Sorry, I couldn't evaluate your answer right now.", 'ai');
         setReadingState('error');
       } finally {
+        // Only set loading to false when AI processing is done
         setIsLoading(false);
         setIsAISpeaking(false);
       }
     } else if (readingState === 'idle' || readingState === 'error') {
+        // User is prompting to fetch news again
         await fetchNews(); 
-        // fetchNews manages its own isLoading and isAISpeaking for AI messages part
-        // but we need to ensure the user input bar is re-enabled after *their* action prompted the fetch
-        setIsLoading(false); 
+        // fetchNews handles its own setIsLoading/isAISpeaking internally for its messages
+        // but we ensure the input bar is usable after this action sequence
+        setIsLoading(false);
         setIsAISpeaking(false);
     }
   };
@@ -171,6 +175,24 @@ export default function ReadingPage() {
       handleSend();
     }
   };
+
+  // Determine if the send button should show loader or icon
+  const sendButtonContent = () => {
+    // Show loader if:
+    // 1. Overall isLoading is true (meaning an AI operation is in progress) AND
+    // 2. EITHER it's not specifically 'awaiting_answer' state (i.e., initial load, or error recovery fetch)
+    //    OR it is 'evaluating' (meaning user answered, now AI is working)
+    if (isLoading && (readingState !== 'awaiting_answer' || readingState === 'evaluating')) {
+      return <Loader2 className="h-5 w-5 animate-spin" />;
+    }
+    return <SendIcon className="h-5 w-5" />;
+  };
+  
+  const inputPlaceholder = () => {
+    if (isLoading && isAISpeaking) return "AI is working...";
+    if (readingState === 'awaiting_answer') return "Type your answer...";
+    return "Type here or press send for news";
+  }
 
   return (
     <div className="flex flex-col h-full relative">
@@ -190,7 +212,7 @@ export default function ReadingPage() {
                   message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card text-card-foreground rounded-bl-none',
-                  message.isLoading && 'italic text-muted-foreground'
+                  message.isLoading && message.sender === 'ai' && 'italic text-muted-foreground' // Apply only if AI is loading
                 )}
               >
                 {message.isLoading && message.sender === 'ai' ? (
@@ -212,7 +234,7 @@ export default function ReadingPage() {
         <div className="flex items-center gap-2 max-w-xs mx-auto bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out">
           <Input
             type="text"
-            placeholder={isLoading ? "AI is working..." : (readingState === 'awaiting_answer' ? "Type your answer..." : "Type here or press send for news")}
+            placeholder={inputPlaceholder()}
             value={inputValue}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
@@ -225,7 +247,7 @@ export default function ReadingPage() {
             className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
             aria-label="Send message"
           >
-            {isLoading && readingState !== 'awaiting_answer' ? <Loader2 className="h-5 w-5 animate-spin" /> : <SendIcon className="h-5 w-5" />}
+            {sendButtonContent()}
           </Button>
         </div>
       </div>
