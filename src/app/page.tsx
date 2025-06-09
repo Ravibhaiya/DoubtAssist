@@ -22,15 +22,22 @@ export default function Home() {
             Conversation Practice
           </Button>
         </Link>
+        <Link href="/translation">
+          <Button
+            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
+          >
+            Translation Exercise
+          </Button>
+        </Link>
         <Button
           className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
-          // onClick={() => alert("Cloze Test feature coming soon!")} // Example onClick
+          
         >
           Cloze Test
         </Button>
         <Button
           className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
-          // onClick={() => alert("Grammar Exercises feature coming soon!")} // Example onClick
+          
         >
           Grammar Exercises
         </Button>

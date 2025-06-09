@@ -1,19 +1,23 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home } from 'lucide-react'; 
+import { Home, MessageCircle, BookOpenText, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
+  { href: '/reading', label: 'Reading', icon: BookOpenText },
+  { href: '/conversation', label: 'Chat', icon: MessageCircle },
+  { href: '/translation', label: 'Translate', icon: Languages },
 ];
 
 export function BottomNavigationBar() {
   const pathname = usePathname();
 
   if (navItems.length === 0) {
-    return null; 
+    return null;
   }
 
   return (
@@ -25,7 +29,7 @@ export function BottomNavigationBar() {
             key={item.label}
             href={item.href}
             className={cn(
-              'flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-all duration-150 ease-in-out transform active:scale-95', // Added 'transition-all'
+              'flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-all duration-150 ease-in-out transform active:scale-95',
               isActive ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
             )}
             aria-current={isActive ? 'page' : undefined}
