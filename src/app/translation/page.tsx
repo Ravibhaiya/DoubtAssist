@@ -77,7 +77,7 @@ export default function TranslationPage() {
       setTranslationState('awaiting_translation');
     } catch (error) {
       console.error("Error fetching Hindi paragraph:", error);
-      addMessage('ai', { text: "Sorry, I couldn't fetch a new paragraph right now. Please try again by typing 'new paragraph' or clicking the button." });
+      addMessage('ai', { text: "Sorry, I couldn't fetch a new paragraph right now. Please try again by typing 'new paragraph'." });
       setTranslationState('error');
     } finally {
       setIsLoading(false);
@@ -171,15 +171,7 @@ export default function TranslationPage() {
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex-grow container mx-auto p-4 overflow-y-auto pb-28 sm:pb-24">
-        <Button
-          onClick={fetchNewParagraph}
-          disabled={isLoading || isAISpeaking}
-          className="mb-4 bg-accent hover:bg-accent/90 text-accent-foreground"
-          variant="outline"
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Get New Hindi Paragraph
-        </Button>
+        
         <div className="space-y-4">
           {messages.map((message) => (
             <div
