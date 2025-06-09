@@ -4,31 +4,21 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
-import { Send as SendIcon, Loader2, MessageSquareText, CheckCircle, XCircle, BookOpen } from 'lucide-react';
+import { Send as SendIcon, Loader2, MessageSquareText, CheckCircle, XCircle, BookOpen, Lightbulb, Smile, TextSelect } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 import { startConversation, type StartConversationOutput } from '@/ai/flows/startConversationFlow';
-import { continueConversation, type ContinueConversationOutput, type ContinueConversationInput } from '@/ai/flows/continueConversationFlow';
+import { continueConversation, type ContinueConversationOutput, type ContinueConversationInput, type ComprehensiveFeedback } from '@/ai/flows/continueConversationFlow';
 
-interface MessageFeedbackSuggestion {
-  originalChunk: string;
-  correctedChunk: string;
-  explanation: string;
-}
-interface MessageFeedback {
-  isPerfect: boolean;
-  suggestions?: MessageFeedbackSuggestion[];
-  overallComment: string;
-}
 
 interface Message {
   id: string;
-  text?: string; // AI's conversational reply
+  text?: string; 
   sender: 'user' | 'ai';
   timestamp: Date;
   isLoading?: boolean;
-  feedback?: MessageFeedback; // English feedback from AI
+  feedback?: ComprehensiveFeedback; 
 }
 
 export default function ConversationPage() {
@@ -36,13 +26,13 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAISpeaking, setIsAISpeaking] = useState(false); // To disable input while AI is "typing"
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
 
   const addMessage = (
     text: string | undefined,
     sender: 'user' | 'ai',
     isLoadingMsg: boolean = false,
-    feedback?: MessageFeedback
+    feedback?: ComprehensiveFeedback
   ) => {
     const newMessage: Message = {
       id: Date.now().toString() + Math.random(),
@@ -54,7 +44,6 @@ export default function ConversationPage() {
     };
     setMessages(prevMessages => {
       if (isLoadingMsg && sender === 'ai') {
-        // Replace existing loading message if one exists
         const existingLoadingIndex = prevMessages.findIndex(msg => msg.isLoading && msg.sender === 'ai');
         if (existingLoadingIndex !== -1) {
           const updatedMessages = [...prevMessages];
@@ -63,7 +52,6 @@ export default function ConversationPage() {
         }
         return [...prevMessages, newMessage];
       }
-      // Remove any old loading message before adding the final AI message or user message
       const filteredMessages = prevMessages.filter(msg => !(msg.isLoading && msg.sender === 'ai'));
       return [...filteredMessages, newMessage];
     });
@@ -72,7 +60,7 @@ export default function ConversationPage() {
   const fetchOpeningMessage = async () => {
     setIsLoading(true);
     setIsAISpeaking(true);
-    addMessage("Starting a conversation...", 'ai', true);
+    addMessage("Let's start a conversation...", 'ai', true);
     try {
       const result: StartConversationOutput = await startConversation({});
       addMessage(result.openingMessage, 'ai');
@@ -120,7 +108,6 @@ export default function ConversationPage() {
 
     } catch (e) {
       console.error("Error in handleSend (conversation):", e);
-      // Remove loading message
       setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
       addMessage("Sorry, I encountered an issue. Let's try that again or you can say something else!", "ai");
     } finally {
@@ -177,32 +164,71 @@ export default function ConversationPage() {
                   <>
                     {message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>}
                     {message.feedback && (
-                      <Card className="mt-3 bg-secondary/50 border-border shadow-inner">
-                        <CardHeader className="p-3">
-                          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                            <BookOpen size={16} className="text-primary" /> English Feedback
+                      <Card className="mt-3 bg-secondary/30 border-border/50 shadow-inner">
+                        <CardHeader className="p-3 pb-2">
+                           <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-primary">
+                            <MessageSquareText size={14} /> English Feedback
                           </CardTitle>
+                          <CardDescription className="text-xs !mt-1">{message.feedback.overallComment}</CardDescription>
                         </CardHeader>
-                        <CardContent className="p-3 text-xs space-y-2">
-                          <div className={cn(
-                            "p-2 rounded-md shadow-sm flex items-start gap-2",
-                            message.feedback.isPerfect 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-amber-100 text-amber-800"
-                          )}>
-                            {message.feedback.isPerfect ? <CheckCircle size={16} className="text-green-600 mt-0.5 shrink-0" /> : <XCircle size={16} className="text-amber-600 mt-0.5 shrink-0" />}
-                            <p className="whitespace-pre-wrap break-words font-medium">{message.feedback.overallComment}</p>
-                          </div>
-
-                          {!message.feedback.isPerfect && message.feedback.suggestions && message.feedback.suggestions.length > 0 && (
-                            <div className="space-y-2 pt-1">
-                              {message.feedback.suggestions.map((suggestion, idx) => (
-                                <div key={idx} className="p-2 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 space-y-1">
-                                  <p><strong className="font-medium">Original:</strong> <span className="line-through text-red-500">{suggestion.originalChunk}</span></p>
-                                  <p><strong className="font-medium">Suggestion:</strong> <span className="text-green-600">{suggestion.correctedChunk}</span></p>
+                        <CardContent className="p-3 pt-1 text-xs space-y-3">
+                          {/* Grammar Suggestions */}
+                          {message.feedback.grammarSuggestions && message.feedback.grammarSuggestions.length > 0 && (
+                            <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-800 space-y-1.5 shadow-sm">
+                              <h4 className="font-semibold text-xs flex items-center gap-1"><XCircle size={14} /> Grammar & Spelling</h4>
+                              {message.feedback.grammarSuggestions.map((suggestion, idx) => (
+                                <div key={`gram-${idx}`} className="border-t border-red-200/70 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
+                                  <p><strong className="font-medium">Original:</strong> <span className="line-through text-red-600">{suggestion.originalChunk}</span></p>
+                                  <p><strong className="font-medium">Correction:</strong> <span className="text-green-600 font-medium">{suggestion.correctedChunk}</span></p>
                                   <p><strong className="font-medium">Explanation:</strong> {suggestion.explanation}</p>
                                 </div>
                               ))}
+                            </div>
+                          )}
+                           {message.feedback.isGrammaticallyPerfect && (!message.feedback.grammarSuggestions || message.feedback.grammarSuggestions.length === 0) && (
+                             <div className="p-2.5 rounded-md bg-green-50 border border-green-200 text-green-800 space-y-1 shadow-sm">
+                                <h4 className="font-semibold text-xs flex items-center gap-1"><CheckCircle size={14} /> Grammar & Spelling</h4>
+                                <p>Your grammar and spelling look great in this message!</p>
+                             </div>
+                           )}
+
+
+                          {/* Vocabulary Suggestions */}
+                          {message.feedback.vocabularySuggestions && message.feedback.vocabularySuggestions.length > 0 && (
+                            <div className="p-2.5 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 space-y-1.5 shadow-sm">
+                              <h4 className="font-semibold text-xs flex items-center gap-1"><Lightbulb size={14} /> Vocabulary Tips</h4>
+                              {message.feedback.vocabularySuggestions.map((suggestion, idx) => (
+                                <div key={`vocab-${idx}`} className="border-t border-yellow-200/70 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
+                                  <p><strong className="font-medium">Your phrase:</strong> "{suggestion.originalWordOrPhrase}"</p>
+                                  <p><strong className="font-medium">Suggestion:</strong> <span className="text-yellow-900 font-medium">"{suggestion.suggestedAlternative}"</span></p>
+                                  <p><strong className="font-medium">Why:</strong> {suggestion.reasonOrBenefit}</p>
+                                  {suggestion.exampleSentences && suggestion.exampleSentences.length > 0 && (
+                                    <div>
+                                      <strong className="font-medium">Examples:</strong>
+                                      <ul className="list-disc list-inside pl-2">
+                                        {suggestion.exampleSentences.map((ex, exIdx) => <li key={exIdx}>{ex}</li>)}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Fluency Feedback */}
+                          {message.feedback.fluencyFeedback && (
+                            <div className="p-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-800 space-y-1.5 shadow-sm">
+                              <h4 className="font-semibold text-xs flex items-center gap-1"><Smile size={14} /> Fluency & Flow</h4>
+                               <p>{message.feedback.fluencyFeedback.overallFluencyComment}</p>
+                              {message.feedback.fluencyFeedback.clarityComment && <p><strong className="font-medium">Clarity:</strong> {message.feedback.fluencyFeedback.clarityComment}</p>}
+                              {message.feedback.fluencyFeedback.expressionComment && <p><strong className="font-medium">Expression:</strong> {message.feedback.fluencyFeedback.expressionComment}</p>}
+                              {message.feedback.fluencyFeedback.toneComment && <p><strong className="font-medium">Tone:</strong> {message.feedback.fluencyFeedback.toneComment}</p>}
+                              {message.feedback.fluencyFeedback.alternativePhrasing && (
+                                <div className="border-t border-blue-200/70 pt-1.5 mt-1.5">
+                                    <p><strong className="font-medium">Alternative Phrasing Suggestion:</strong></p>
+                                    <p className="italic">{message.feedback.fluencyFeedback.alternativePhrasing}</p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </CardContent>
@@ -241,3 +267,5 @@ export default function ConversationPage() {
     </div>
   );
 }
+
+    

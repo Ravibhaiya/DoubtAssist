@@ -1,11 +1,11 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to continue a conversation and provide English feedback.
+ * @fileOverview A Genkit flow to continue a conversation and provide comprehensive English feedback.
  *
- * - continueConversation - Handles user's message, generates AI reply and English feedback.
+ * - continueConversation - Handles user's message, generates AI reply and detailed English feedback.
  * - ContinueConversationInput - Input type: { userMessage: string }.
- * - ContinueConversationOutput - Output type: { aiReply: string, feedback: { isPerfect: boolean, suggestions?: Array, overallComment: string } }.
+ * - ContinueConversationOutput - Output type: { aiReply: string, feedback: { ... } }.
  */
 
 import {ai} from '@/ai/genkit';
@@ -13,24 +13,43 @@ import {z} from 'zod';
 
 const ContinueConversationInputSchema = z.object({
   userMessage: z.string().describe("The user's latest message in the conversation."),
-  // Optional: conversationHistory could be added here if needed for deeper context,
-  // but the prompt is designed to work primarily on the user's last message for feedback.
 });
 export type ContinueConversationInput = z.infer<typeof ContinueConversationInputSchema>;
 
-const FeedbackSuggestionSchema = z.object({
-    originalChunk: z.string().describe("The specific part of the user's text that needs correction or could be improved."),
-    correctedChunk: z.string().describe("The suggested correction for that part."),
-    explanation: z.string().describe("A clear, concise explanation of the grammatical rule, spelling correction, or reason for the phrasing suggestion. Be specific about the type of error (e.g., 'Subject-verb agreement', 'Spelling', 'Tense error', 'Awkward phrasing')."),
+const GrammarSuggestionSchema = z.object({
+  originalChunk: z.string().describe("The specific part of the user's text with a grammar or spelling error."),
+  correctedChunk: z.string().describe("The suggested correction for that part."),
+  explanation: z.string().describe("A clear, concise, and simple explanation of the error and correction, avoiding technical jargon. E.g., 'Use 'goes' with 'she' for present actions.' or 'It should be 'an apple' because 'apple' starts with a vowel sound.'"),
 });
+
+const VocabularySuggestionSchema = z.object({
+  originalWordOrPhrase: z.string().describe("The simple, less natural, or slightly incorrect word/phrase used by the user."),
+  suggestedAlternative: z.string().describe("A stronger, more natural, or more appropriate vocabulary alternative."),
+  reasonOrBenefit: z.string().describe("A brief explanation of why the alternative is better (e.g., 'sounds more natural in conversation', 'is more expressive', 'is the common way to say this')."),
+  exampleSentences: z.array(z.string()).optional().describe("One or two example sentences showing how to use the suggested alternative. Omit if not easily applicable or if the suggestion is very simple.")
+});
+
+const FluencyFeedbackSchema = z.object({
+  clarityComment: z.string().optional().describe("Comment on the clarity of the user's message. E.g., 'Your message was very clear.' or 'This part was a bit hard to follow.'"),
+  expressionComment: z.string().optional().describe("Comment on how naturally the user expressed themselves. E.g., 'You expressed that idea very naturally!'"),
+  toneComment: z.string().optional().describe("Comment on the perceived tone of the message, if relevant. E.g., 'Your tone was friendly and polite.'"),
+  alternativePhrasing: z.string().optional().describe("If the user's sentence structure was awkward or could be improved for fluency, suggest a more natural way to phrase it, with a simple explanation. E.g., 'Instead of 'What you do yesterday?', you could say: 'What did you do yesterday?' This sounds more natural for past questions.'"),
+  overallFluencyComment: z.string().describe("A general comment on the user's conversational fluency in this message, considering aspects like flow and naturalness."),
+});
+
+const ComprehensiveFeedbackSchema = z.object({
+  isGrammaticallyPerfect: z.boolean().describe("True if no grammatical, spelling, or punctuation errors were found in the user's latest message. False otherwise."),
+  grammarSuggestions: z.array(GrammarSuggestionSchema).optional().describe("An array of specific corrections for grammar, spelling, or punctuation. This should only be present if 'isGrammaticallyPerfect' is false or if very minor, helpful corrections are noted."),
+  vocabularySuggestions: z.array(VocabularySuggestionSchema).optional().describe("Suggestions for better word choices or more natural phrasing, even if the original was not strictly incorrect. Provide these if opportunities for improvement exist."),
+  fluencyFeedback: FluencyFeedbackSchema.optional().describe("Overall feedback on conversational fluency, clarity, and naturalness of expression."),
+  overallComment: z.string().describe("A brief, encouraging summary comment on the user's English in their last message, considering all aspects of feedback. This comment should always be present."),
+}).describe("Detailed feedback on the user's English (grammar, spelling, vocabulary, fluency) based on their latest message.");
+export type ComprehensiveFeedback = z.infer<typeof ComprehensiveFeedbackSchema>;
+
 
 const ContinueConversationOutputSchema = z.object({
   aiReply: z.string().describe("The AI's natural, engaging conversational reply to the user's message, keeping the discussion flowing."),
-  feedback: z.object({
-    isPerfect: z.boolean().describe("True if no errors or areas for improvement were found in the user's latest message. False otherwise."),
-    suggestions: z.array(FeedbackSuggestionSchema).optional().describe("An array of specific suggestions for improvement. This should only be present if 'isPerfect' is false. If 'isPerfect' is true, this array can be omitted or empty."),
-    overallComment: z.string().describe("A brief, encouraging overall comment on the user's English in their last message. If no errors, this can simply state that their English was clear or well-phrased."),
-  }).describe("Feedback on the user's English (spelling, grammar, phrasing) based on their latest message."),
+  feedback: ComprehensiveFeedbackSchema,
 });
 export type ContinueConversationOutput = z.infer<typeof ContinueConversationOutputSchema>;
 
@@ -43,17 +62,34 @@ You will receive the user's latest message.
 
 Your two primary tasks are:
 1.  **Converse**: Respond naturally and engagingly to the user's message to keep the conversation flowing. This response will be the 'aiReply' field in your JSON output.
-2.  **Analyze and Provide Feedback on English**:
-    *   Carefully review the user's **latest message only** for any spelling mistakes, grammatical errors, awkward phrasing, or areas for improvement.
-    *   Construct the 'feedback' object based on your analysis:
-        *   If the user's English in their latest message is perfect and natural, set 'isPerfect' to true. The 'suggestions' array should be empty or omitted. Provide a positive 'overallComment' (e.g., "Your English is excellent in this message!" or "Great phrasing!").
-        *   If there are errors or areas for improvement:
-            *   Set 'isPerfect' to false.
-            *   For each distinct error or awkward phrasing, create an entry in the 'suggestions' array. Each suggestion must include:
-                *   'originalChunk': The exact segment of the user's text with the issue.
-                *   'correctedChunk': The corrected version of that segment.
-                *   'explanation': A clear, concise explanation of *why* it was incorrect or how it could be improved. Be specific about the type of error (e.g., "Subject-verb agreement: 'he go' should be 'he goes'.", "Spelling: 'recieve' should be 'receive'.", "Tense error: 'I have went' should be 'I have gone' or 'I went'.", "Phrasing: A more natural way to say this might be '[suggestion]' because...").
-            *   Provide a brief, encouraging 'overallComment' (e.g., "Good effort! Here are a few things to keep in mind:" or "You're expressing yourself well, just a couple of small points on grammar:").
+2.  **Analyze and Provide Comprehensive English Feedback**: Carefully review the user's **latest message only** and construct the 'feedback' object according to the 'ComprehensiveFeedbackSchema'.
+
+    **A. Grammar, Spelling, and Punctuation Correction:**
+    *   Identify any errors (e.g., verb tense, subject-verb agreement, articles, prepositions, spelling, punctuation).
+    *   If errors exist, set 'isGrammaticallyPerfect' to false. For each error, add an item to 'grammarSuggestions' with:
+        *   'originalChunk': The exact text segment with the error.
+        *   'correctedChunk': The corrected version.
+        *   'explanation': A **simple, non-technical explanation** in plain English. Example: User says "She go to market." Explanation: "You can say: 'She goes to the market.' We use 'goes' with 'she' when talking about present actions."
+    *   If no such errors, set 'isGrammaticallyPerfect' to true. 'grammarSuggestions' can be empty or omitted.
+
+    **B. Vocabulary Enhancement:**
+    *   Look for opportunities to suggest stronger, more natural, or more precise vocabulary, even if the user's choice isn't strictly wrong.
+    *   If you find such opportunities, add items to 'vocabularySuggestions' with:
+        *   'originalWordOrPhrase': The user's word/phrase.
+        *   'suggestedAlternative': Your improved suggestion.
+        *   'reasonOrBenefit': Why it's better (e.g., "sounds more natural," "is more expressive"). Example: User says "I am very happy." Suggestion: "ecstatic". Reason: "'Ecstatic' means extremely happy and is more descriptive."
+        *   'exampleSentences': (Optional) 1-2 examples of the suggested alternative in use.
+
+    **C. Conversational Fluency Feedback:**
+    *   Provide holistic feedback on how the user's message sounds in a conversation. Construct the 'fluencyFeedback' object:
+        *   'clarityComment': Was the message easy to understand?
+        *   'expressionComment': How natural did their phrasing sound?
+        *   'toneComment': (Optional) Comment on politeness, friendliness, etc.
+        *   'alternativePhrasing': If the sentence structure was awkward or could be significantly improved for fluency, suggest a more natural way to phrase it with a simple explanation. Example: User: "What you do yesterday?" AI Suggestion: "You could say: 'What did you do yesterday?' This sounds more natural for past questions because we use 'did'."
+        *   'overallFluencyComment': A general remark on their conversational flow for this message.
+
+    **D. Overall Encouraging Comment:**
+    *   Provide an 'overallComment' that is encouraging and summarizes the feedback briefly. This should always be present.
 
 User's latest message:
 '''
@@ -84,14 +120,19 @@ const continueConversationFlow = ai.defineFlow(
       return {
         aiReply: "I'm having a little trouble understanding that. Could you try rephrasing?",
         feedback: {
-          isPerfect: true,
+          isGrammaticallyPerfect: true,
           overallComment: "Couldn't process feedback at this moment.",
         }
       };
     }
-    // Ensure suggestions is an empty array if isPerfect is true and suggestions is undefined
-    if (output.feedback.isPerfect && output.feedback.suggestions === undefined) {
-      output.feedback.suggestions = [];
+    // Ensure optional arrays are present if their parent object exists
+    if (output.feedback) {
+        if (output.feedback.isGrammaticallyPerfect && output.feedback.grammarSuggestions === undefined) {
+            output.feedback.grammarSuggestions = [];
+        }
+        if (output.feedback.vocabularySuggestions === undefined) {
+            output.feedback.vocabularySuggestions = [];
+        }
     }
     return output;
   }
@@ -101,3 +142,4 @@ export async function continueConversation(input: ContinueConversationInput): Pr
   return continueConversationFlow(input);
 }
 
+    
