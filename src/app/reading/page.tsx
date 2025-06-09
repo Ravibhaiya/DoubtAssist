@@ -16,7 +16,7 @@ import { explainText, type ExplainTextInput, type ExplainTextOutput } from '@/ai
 
 interface Message {
   id: string;
-  text?: string; 
+  text?: string;
   sender: 'user' | 'ai';
   timestamp: Date;
   isLoading?: boolean;
@@ -31,13 +31,14 @@ export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const initialFetchDoneRef = useRef(false); // Add ref to track initial fetch
 
-  const [currentArticle, setCurrentArticle] = useState<string | null>(null); // Stores the raw article text for evaluation/querying
+  const [currentArticle, setCurrentArticle] = useState<string | null>(null);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [readingState, setReadingState] = useState<ReadingState>('idle');
-  const [isLoading, setIsLoading] = useState(false); 
-  const [isAISpeaking, setIsAISpeaking] = useState(false); 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
 
   const addMessage = (
     text: string | undefined,
@@ -75,7 +76,7 @@ export default function ReadingPage() {
   const fetchNews = async () => {
     setIsLoading(true);
     setReadingState('idle');
-    setCurrentArticle(null); 
+    setCurrentArticle(null);
     setCurrentQuestions([]);
     setCurrentQuestionIndex(0);
     addMessage("Fetching a news article and questions for you...", 'ai', true);
@@ -83,11 +84,10 @@ export default function ReadingPage() {
     try {
       const result: GetNewsAndQuestionsOutput = await getNewsAndQuestions({});
 
-      setCurrentArticle(result.article); // Store the raw article for context
+      setCurrentArticle(result.article);
       setCurrentQuestions(result.questions);
       setCurrentQuestionIndex(0);
-      
-      // Remove loading message before adding new content
+
       setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
 
       let articleMetadata = "";
@@ -100,8 +100,8 @@ export default function ReadingPage() {
       if (articleMetadata.length > 0) {
         addMessage(articleMetadata.trim(), 'ai');
       }
-      
-      addMessage(result.article, 'ai', false, undefined, undefined, true); // Add article content, marked as isArticle
+
+      addMessage(result.article, 'ai', false, undefined, undefined, true);
 
       if (result.questions && result.questions.length > 0) {
         addMessage(result.questions[0], 'ai');
@@ -122,9 +122,12 @@ export default function ReadingPage() {
   };
 
   useEffect(() => {
-    fetchNews();
+    if (!initialFetchDoneRef.current) { // Check ref before fetching
+      fetchNews();
+      initialFetchDoneRef.current = true; // Set ref after first fetch
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Empty dependency array ensures this runs on mount
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,14 +148,13 @@ export default function ReadingPage() {
     if (!cleanedWord) return;
 
     addMessage(`Explain: "${cleanedWord}"`, 'user');
-    setInputValue(''); // Clear input field after "sending" word explanation request
+    setInputValue('');
     setIsLoading(true);
     setIsAISpeaking(true);
     addMessage("Explaining...", 'ai', true);
 
     let contextSentenceFound: string | undefined = undefined;
-    // Regex to split by sentences, might need refinement for complex cases
-    const sentences = fullArticleText.split(/(?<=[.!?])\s+(?=[A-ZА-ЯЁ])/); // Split on sentence enders followed by space and capital letter
+    const sentences = fullArticleText.split(/(?<=[.!?])\s+(?=[A-ZА-ЯЁ])/);
     for (const sentence of sentences) {
         const wordRegex = new RegExp(`\\b${cleanedWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
         if (wordRegex.test(sentence)) {
@@ -165,7 +167,7 @@ export default function ReadingPage() {
       const explainInput: ExplainTextInput = { textToExplain: cleanedWord, contextSentence: contextSentenceFound };
       const result = await explainText(explainInput);
       addMessage(
-        undefined, 
+        undefined,
         'ai',
         false,
         undefined,
@@ -193,7 +195,7 @@ export default function ReadingPage() {
 
     setIsLoading(true);
     setIsAISpeaking(true);
-    let loadingMessageText = "Thinking..."; 
+    let loadingMessageText = "Thinking...";
 
     try {
       if (readingState === 'awaiting_answer' && currentArticle && currentQuestions.length > 0) {
@@ -223,7 +225,7 @@ export default function ReadingPage() {
           addMessage("You've answered all questions for this article! Ask about the article, explain something, or request a 'new article'.", 'ai');
           setReadingState('idle');
         }
-      } else { 
+      } else {
         const lowerUserText = userText.toLowerCase();
         const newArticleKeywords = ["new article", "another article", "fetch news", "next one", "try another", "get news", "new news", "next article", "fetch article"];
         let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
@@ -234,10 +236,10 @@ export default function ReadingPage() {
             isRequestingNew = true;
           }
         }
-        
+
         if (isRequestingNew) {
-          await fetchNews(); 
-          return; 
+          await fetchNews();
+          return;
         } else if (currentArticle && (lowerUserText.includes("?") || lowerUserText.split(" ").length > 3 || ["what", "who", "why", "when", "where", "how", "tell me about", "explain about"].some(kw => lowerUserText.startsWith(kw)))) {
           loadingMessageText = "Thinking about your question on the article...";
           addMessage(loadingMessageText, 'ai', true);
@@ -252,7 +254,7 @@ export default function ReadingPage() {
           const explainInput: ExplainTextInput = { textToExplain: userText };
           const result = await explainText(explainInput);
           addMessage(
-            undefined, 
+            undefined,
             'ai',
             false,
             undefined,
@@ -342,19 +344,19 @@ export default function ReadingPage() {
                     {message.text && <p className="break-words whitespace-pre-wrap font-medium">{message.text}</p>}
                     <div className={cn(
                       "p-2.5 rounded-lg shadow",
-                      message.evaluationDetails.isCorrect 
-                        ? "bg-green-100 text-green-900 dark:bg-green-700 dark:text-green-100" 
+                      message.evaluationDetails.isCorrect
+                        ? "bg-green-100 text-green-900 dark:bg-green-700 dark:text-green-100"
                         : "bg-yellow-100 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-100"
                     )}>
-                      <strong className="font-semibold block mb-1">Evaluation:</strong> 
+                      <strong className="font-semibold block mb-1">Evaluation:</strong>
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.isCorrect ? 'Correct!' : 'Needs review.'}</span>
                     </div>
                     <div className="p-2.5 rounded-lg shadow bg-blue-100 text-blue-900 dark:bg-blue-700 dark:text-blue-100">
-                      <strong className="font-semibold block mb-1">Feedback:</strong> 
+                      <strong className="font-semibold block mb-1">Feedback:</strong>
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.feedback}</span>
                     </div>
                     <div className="p-2.5 rounded-lg shadow bg-indigo-100 text-indigo-900 dark:bg-indigo-700 dark:text-indigo-100">
-                      <strong className="font-semibold block mb-1">Grammar:</strong> 
+                      <strong className="font-semibold block mb-1">Grammar:</strong>
                       <span className="whitespace-pre-wrap">{message.evaluationDetails.grammarFeedback}</span>
                     </div>
                   </div>
@@ -407,7 +409,7 @@ export default function ReadingPage() {
           />
           <Button
             onClick={handleSend}
-            disabled={(inputValue.trim() === '' && readingState === 'awaiting_answer') || isLoading || isAISpeaking}
+            disabled={inputValue.trim() === '' || isLoading || isAISpeaking}
             className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
             aria-label="Send message"
           >

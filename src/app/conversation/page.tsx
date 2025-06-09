@@ -14,17 +14,19 @@ import { continueConversation, type ContinueConversationOutput, type ContinueCon
 
 interface Message {
   id: string;
-  text?: string; 
+  text?: string;
   sender: 'user' | 'ai';
   timestamp: Date;
   isLoading?: boolean;
-  feedback?: ComprehensiveFeedback; 
+  feedback?: ComprehensiveFeedback;
 }
 
 export default function ConversationPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const initialFetchDoneRef = useRef(false); // Add ref to track initial fetch
+
   const [isLoading, setIsLoading] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
 
@@ -74,9 +76,12 @@ export default function ConversationPage() {
   };
 
   useEffect(() => {
-    fetchOpeningMessage();
+    if (!initialFetchDoneRef.current) { // Check ref before fetching
+      fetchOpeningMessage();
+      initialFetchDoneRef.current = true; // Set ref after first fetch
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Empty dependency array ensures this runs on mount
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
