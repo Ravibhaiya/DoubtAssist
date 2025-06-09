@@ -28,6 +28,7 @@ export default {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          darker: 'hsl(var(--primary-darker))'
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -48,6 +49,22 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        success: {
+          DEFAULT: 'hsl(var(--success-bg))',
+          foreground: 'hsl(var(--success-fg))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning-bg))',
+          foreground: 'hsl(var(--warning-fg))',
+        },
+        error: {
+          DEFAULT: 'hsl(var(--error-bg))',
+          foreground: 'hsl(var(--error-fg))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info-bg))',
+          foreground: 'hsl(var(--info-fg))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',

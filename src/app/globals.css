@@ -40,6 +40,17 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
+    /* Status Colors */
+    --success-bg: 130 50% 95%; /* Light Green Background */
+    --success-fg: 130 45% 30%; /* Dark Green Text/Icon */
+    --warning-bg: 45 100% 95%; /* Light Yellow Background */
+    --warning-fg: 40 80% 35%; /* Dark Yellow Text/Icon */
+    --error-bg: 0 80% 96%; /* Light Red Background */
+    --error-fg: 0 70% 45%; /* Dark Red Text/Icon */
+    --info-bg: 200 85% 95%; /* Light Blue Background */
+    --info-fg: 200 75% 40%; /* Dark Blue Text/Icon */
+
+
     /* Sidebar variables - kept for consistency if shadcn/ui sidebar is used later, though not primary for this request */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -79,6 +90,16 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
+    /* Status Colors Dark */
+    --success-bg: 130 40% 15%; 
+    --success-fg: 130 50% 75%; 
+    --warning-bg: 45 70% 18%; 
+    --warning-fg: 45 85% 70%; 
+    --error-bg: 0 50% 20%; 
+    --error-fg: 0 70% 75%; 
+    --info-bg: 200 60% 20%; 
+    --info-fg: 200 70% 75%; 
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -95,6 +116,6 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body antialiased;
+    @apply bg-background text-foreground font-body antialiased overflow-x-hidden;
   }
 }

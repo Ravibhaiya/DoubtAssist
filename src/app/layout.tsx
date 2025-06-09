@@ -20,7 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased bg-background text-foreground overflow-x-hidden">
         <div className="flex flex-col min-h-screen">
           <main className="flex-grow pb-16 sm:pb-0"> {/* pb-16 for bottom nav space on mobile, 0 on sm+ */}
             {children}

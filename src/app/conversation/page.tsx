@@ -25,7 +25,7 @@ export default function ConversationPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
-  const initialFetchDoneRef = useRef(false); // Add ref to track initial fetch
+  const initialFetchDoneRef = useRef(false); 
 
   const [isLoading, setIsLoading] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -76,12 +76,12 @@ export default function ConversationPage() {
   };
 
   useEffect(() => {
-    if (!initialFetchDoneRef.current) { // Check ref before fetching
+    if (!initialFetchDoneRef.current) { 
       fetchOpeningMessage();
-      initialFetchDoneRef.current = true; // Set ref after first fetch
+      initialFetchDoneRef.current = true; 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array ensures this runs on mount
+  }, []); 
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,8 +95,10 @@ export default function ConversationPage() {
     setInputValue(e.target.value);
   };
 
+  const isSendButtonDisabled = isLoading || isAISpeaking;
+
   const handleSend = async () => {
-    if (inputValue.trim() === '' || isLoading || isAISpeaking) return;
+    if (inputValue.trim() === '' || isSendButtonDisabled) return;
 
     const userText = inputValue.trim();
     addMessage(userText, 'user');
@@ -129,14 +131,14 @@ export default function ConversationPage() {
   };
 
   const sendButtonContent = () => {
-    if (isLoading || isAISpeaking) {
+    if (isSendButtonDisabled) {
       return <Loader2 className="h-5 w-5 animate-spin" />;
     }
     return <SendIcon className="h-5 w-5" />;
   };
 
   const inputPlaceholder = () => {
-    if (isLoading || isAISpeaking) return "AI is working...";
+    if (isSendButtonDisabled) return "AI is working...";
     return "Type your message...";
   }
 
@@ -169,7 +171,7 @@ export default function ConversationPage() {
                   <>
                     {message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>}
                     {message.feedback && (
-                      <Card className="mt-3 bg-secondary/30 border-border/50 shadow-inner">
+                      <Card className="mt-3 bg-card/80 border-border/50 shadow-inner">
                         <CardHeader className="p-3 pb-2">
                            <CardTitle className="text-xs font-semibold flex items-center gap-1.5 text-primary">
                             <MessageSquareText size={14} /> English Feedback
@@ -179,19 +181,19 @@ export default function ConversationPage() {
                         <CardContent className="p-3 pt-1 text-xs space-y-3">
                           {/* Grammar Suggestions */}
                           {message.feedback.grammarSuggestions && message.feedback.grammarSuggestions.length > 0 && (
-                            <div className="p-2.5 rounded-md bg-red-50 border border-red-200 text-red-800 space-y-1.5 shadow-sm">
+                            <div className="p-3 rounded-md bg-error text-error-foreground border border-error-foreground/30 space-y-1.5 shadow-sm">
                               <h4 className="font-semibold text-xs flex items-center gap-1"><XCircle size={14} /> Grammar & Spelling</h4>
                               {message.feedback.grammarSuggestions.map((suggestion, idx) => (
-                                <div key={`gram-${idx}`} className="border-t border-red-200/70 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
-                                  <p><strong className="font-medium">Original:</strong> <span className="line-through text-red-600">{suggestion.originalChunk}</span></p>
-                                  <p><strong className="font-medium">Correction:</strong> <span className="text-green-600 font-medium">{suggestion.correctedChunk}</span></p>
+                                <div key={`gram-${idx}`} className="border-t border-error-foreground/20 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
+                                  <p><strong className="font-medium">Original:</strong> <span className="line-through opacity-80">{suggestion.originalChunk}</span></p>
+                                  <p><strong className="font-medium">Correction:</strong> <span className="font-medium">{suggestion.correctedChunk}</span></p>
                                   <p><strong className="font-medium">Explanation:</strong> {suggestion.explanation}</p>
                                 </div>
                               ))}
                             </div>
                           )}
                            {message.feedback.isGrammaticallyPerfect && (!message.feedback.grammarSuggestions || message.feedback.grammarSuggestions.length === 0) && (
-                             <div className="p-2.5 rounded-md bg-green-50 border border-green-200 text-green-800 space-y-1 shadow-sm">
+                             <div className="p-3 rounded-md bg-success text-success-foreground border border-success-foreground/30 space-y-1 shadow-sm">
                                 <h4 className="font-semibold text-xs flex items-center gap-1"><CheckCircle size={14} /> Grammar & Spelling</h4>
                                 <p>Your grammar and spelling look great in this message!</p>
                              </div>
@@ -200,12 +202,12 @@ export default function ConversationPage() {
 
                           {/* Vocabulary Suggestions */}
                           {message.feedback.vocabularySuggestions && message.feedback.vocabularySuggestions.length > 0 && (
-                            <div className="p-2.5 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 space-y-1.5 shadow-sm">
+                            <div className="p-3 rounded-md bg-warning text-warning-foreground border border-warning-foreground/30 space-y-1.5 shadow-sm">
                               <h4 className="font-semibold text-xs flex items-center gap-1"><Lightbulb size={14} /> Vocabulary Tips</h4>
                               {message.feedback.vocabularySuggestions.map((suggestion, idx) => (
-                                <div key={`vocab-${idx}`} className="border-t border-yellow-200/70 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
+                                <div key={`vocab-${idx}`} className="border-t border-warning-foreground/20 pt-1.5 mt-1.5 first:mt-0 first:border-t-0 first:pt-0">
                                   <p><strong className="font-medium">Your phrase:</strong> "{suggestion.originalWordOrPhrase}"</p>
-                                  <p><strong className="font-medium">Suggestion:</strong> <span className="text-yellow-900 font-medium">"{suggestion.suggestedAlternative}"</span></p>
+                                  <p><strong className="font-medium">Suggestion:</strong> <span className="font-medium">"{suggestion.suggestedAlternative}"</span></p>
                                   <p><strong className="font-medium">Why:</strong> {suggestion.reasonOrBenefit}</p>
                                   {suggestion.exampleSentences && suggestion.exampleSentences.length > 0 && (
                                     <div>
@@ -222,14 +224,14 @@ export default function ConversationPage() {
 
                           {/* Fluency Feedback */}
                           {message.feedback.fluencyFeedback && (
-                            <div className="p-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-800 space-y-1.5 shadow-sm">
+                            <div className="p-3 rounded-md bg-info text-info-foreground border border-info-foreground/30 space-y-1.5 shadow-sm">
                               <h4 className="font-semibold text-xs flex items-center gap-1"><Smile size={14} /> Fluency & Flow</h4>
                                <p>{message.feedback.fluencyFeedback.overallFluencyComment}</p>
                               {message.feedback.fluencyFeedback.clarityComment && <p><strong className="font-medium">Clarity:</strong> {message.feedback.fluencyFeedback.clarityComment}</p>}
                               {message.feedback.fluencyFeedback.expressionComment && <p><strong className="font-medium">Expression:</strong> {message.feedback.fluencyFeedback.expressionComment}</p>}
                               {message.feedback.fluencyFeedback.toneComment && <p><strong className="font-medium">Tone:</strong> {message.feedback.fluencyFeedback.toneComment}</p>}
                               {message.feedback.fluencyFeedback.alternativePhrasing && (
-                                <div className="border-t border-blue-200/70 pt-1.5 mt-1.5">
+                                <div className="border-t border-info-foreground/20 pt-1.5 mt-1.5">
                                     <p><strong className="font-medium">Alternative Phrasing Suggestion:</strong></p>
                                     <p className="italic">{message.feedback.fluencyFeedback.alternativePhrasing}</p>
                                 </div>
@@ -249,28 +251,35 @@ export default function ConversationPage() {
       </div>
 
       <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 backdrop-blur-sm py-2 px-2 z-[60] border-t border-border">
-        <div className="flex items-center gap-2 max-w-xs mx-auto bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out">
-          <Input
-            type="text"
-            placeholder={inputPlaceholder()}
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
-            disabled={isLoading || isAISpeaking}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={inputValue.trim() === '' || isLoading || isAISpeaking}
-            className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
-            aria-label="Send message"
-          >
-            {sendButtonContent()}
-          </Button>
+         <div className="relative max-w-sm mx-auto">
+          <div className={cn(
+            "absolute left-0 right-0 bottom-0 h-[calc(100%_-_1px)] bg-primary-darker rounded-xl transition-opacity duration-150 ease-in-out",
+            isSendButtonDisabled ? "opacity-50" : "opacity-100"
+          )} style={{ transform: 'translateY(5px)'}} />
+          <div className="flex items-center gap-2 bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out relative z-10">
+            <Input
+              type="text"
+              placeholder={inputPlaceholder()}
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
+              disabled={isSendButtonDisabled}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={isSendButtonDisabled && inputValue.trim() === ''}
+              className={cn(
+                "h-10 w-12 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all duration-150 ease-in-out flex items-center justify-center relative",
+                !isSendButtonDisabled ? "active:translate-y-[5px]" : "opacity-50 translate-y-0"
+              )}
+              aria-label="Send message"
+            >
+              {sendButtonContent()}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-    

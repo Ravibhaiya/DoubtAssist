@@ -31,7 +31,7 @@ export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
-  const initialFetchDoneRef = useRef(false); // Add ref to track initial fetch
+  const initialFetchDoneRef = useRef(false); 
 
   const [currentArticle, setCurrentArticle] = useState<string | null>(null);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
@@ -122,12 +122,12 @@ export default function ReadingPage() {
   };
 
   useEffect(() => {
-    if (!initialFetchDoneRef.current) { // Check ref before fetching
+    if (!initialFetchDoneRef.current) { 
       fetchNews();
-      initialFetchDoneRef.current = true; // Set ref after first fetch
+      initialFetchDoneRef.current = true; 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array ensures this runs on mount
+  }, []); 
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,9 +185,11 @@ export default function ReadingPage() {
       setIsAISpeaking(false);
     }
   };
+  
+  const isSendButtonDisabled = isLoading || isAISpeaking;
 
   const handleSend = async () => {
-    if (inputValue.trim() === '' || isLoading || isAISpeaking) return;
+    if (inputValue.trim() === '' || isSendButtonDisabled) return;
 
     const userText = inputValue.trim();
     addMessage(userText, 'user');
@@ -210,7 +212,7 @@ export default function ReadingPage() {
         };
         const evaluationResult = await evaluateUserAnswer(evaluationInput);
         addMessage(
-          "Here's the evaluation of your answer:",
+          undefined, // "Here's the evaluation of your answer:" will be part of the card
           'ai',
           false,
           evaluationResult
@@ -283,14 +285,14 @@ export default function ReadingPage() {
   };
 
   const sendButtonContent = () => {
-    if (isLoading || isAISpeaking) {
+    if (isSendButtonDisabled) {
       return <Loader2 className="h-5 w-5 animate-spin" />;
     }
     return <SendIcon className="h-5 w-5" />;
   };
 
   const inputPlaceholder = () => {
-    if (isLoading || isAISpeaking) return "AI is working...";
+    if (isSendButtonDisabled) return "AI is working...";
     if (readingState === 'awaiting_answer') return "Type your answer...";
     if (currentArticle) return "Ask about article, explain text, or 'new article'...";
     return "Explain a word/phrase or type 'new article'";
@@ -329,7 +331,7 @@ export default function ReadingPage() {
                         return (
                           <span
                             key={`${message.id}-word-${index}`}
-                            className="cursor-pointer hover:underline text-accent"
+                            className="cursor-pointer hover:underline text-accent transition-colors duration-150 ease-in-out"
                             onClick={() => handleWordClick(segment, message.text!)}
                           >
                             {segment}
@@ -340,39 +342,41 @@ export default function ReadingPage() {
                     })}
                   </p>
                 ) : message.evaluationDetails ? (
-                  <div className="space-y-2 text-sm">
-                    {message.text && <p className="break-words whitespace-pre-wrap font-medium">{message.text}</p>}
-                    <div className={cn(
-                      "p-2.5 rounded-lg shadow",
-                      message.evaluationDetails.isCorrect
-                        ? "bg-green-100 text-green-900 dark:bg-green-700 dark:text-green-100"
-                        : "bg-yellow-100 text-yellow-900 dark:bg-yellow-600 dark:text-yellow-100"
-                    )}>
-                      <strong className="font-semibold block mb-1">Evaluation:</strong>
-                      <span className="whitespace-pre-wrap">{message.evaluationDetails.isCorrect ? 'Correct!' : 'Needs review.'}</span>
-                    </div>
-                    <div className="p-2.5 rounded-lg shadow bg-blue-100 text-blue-900 dark:bg-blue-700 dark:text-blue-100">
-                      <strong className="font-semibold block mb-1">Feedback:</strong>
-                      <span className="whitespace-pre-wrap">{message.evaluationDetails.feedback}</span>
-                    </div>
-                    <div className="p-2.5 rounded-lg shadow bg-indigo-100 text-indigo-900 dark:bg-indigo-700 dark:text-indigo-100">
-                      <strong className="font-semibold block mb-1">Grammar:</strong>
-                      <span className="whitespace-pre-wrap">{message.evaluationDetails.grammarFeedback}</span>
-                    </div>
-                  </div>
+                  <Card className="bg-transparent border-0 shadow-none p-0">
+                    <CardContent className="p-0 text-sm space-y-3">
+                      <p className="whitespace-pre-wrap break-words font-medium mb-2">Here's the evaluation of your answer:</p>
+                      <div className={cn(
+                        "p-3 rounded-lg shadow-sm border",
+                        message.evaluationDetails.isCorrect
+                          ? "bg-success text-success-foreground border-success-foreground/30"
+                          : "bg-warning text-warning-foreground border-warning-foreground/30"
+                      )}>
+                        <strong className="font-semibold block mb-1">Evaluation:</strong>
+                        <span className="whitespace-pre-wrap">{message.evaluationDetails.isCorrect ? 'Correct!' : 'Needs review.'}</span>
+                      </div>
+                      <div className="p-3 rounded-lg shadow-sm bg-info text-info-foreground border border-info-foreground/30">
+                        <strong className="font-semibold block mb-1">Feedback:</strong>
+                        <span className="whitespace-pre-wrap">{message.evaluationDetails.feedback}</span>
+                      </div>
+                      <div className="p-3 rounded-lg shadow-sm bg-secondary text-secondary-foreground border border-border">
+                        <strong className="font-semibold block mb-1">Grammar:</strong>
+                        <span className="whitespace-pre-wrap">{message.evaluationDetails.grammarFeedback}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : message.explanationDetails ? (
                    <Card className="bg-transparent border-0 shadow-none p-0">
                     <CardContent className="p-0 text-sm space-y-3">
                       {message.text && <p className="whitespace-pre-wrap break-words font-medium mb-2">{message.text}</p>}
                       {message.explanationDetails.explanation && <p className="whitespace-pre-wrap break-words">{message.explanationDetails.explanation}</p>}
                       {message.explanationDetails.originalContextUsed && (
-                        <div className="mt-2 p-2.5 rounded-lg shadow bg-sky-100 dark:bg-sky-700 text-sky-900 dark:text-sky-100">
+                        <div className="mt-2 p-3 rounded-lg shadow-sm bg-info text-info-foreground border border-info-foreground/30">
                           <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Meaning in Context:</strong>
                           <p className="whitespace-pre-wrap break-words italic">"{message.explanationDetails.originalContextUsed}"</p>
                         </div>
                       )}
                       {message.explanationDetails.exampleSentences && message.explanationDetails.exampleSentences.length > 0 && (
-                        <div className="mt-2 p-2.5 rounded-lg shadow bg-teal-100 dark:bg-teal-700 text-teal-900 dark:text-teal-100">
+                        <div className="mt-2 p-3 rounded-lg shadow-sm bg-success text-success-foreground border border-success-foreground/30">
                           <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Example Sentences:</strong>
                           <ul className="list-disc list-inside space-y-1 pl-1">
                             {message.explanationDetails.exampleSentences.map((ex, idx) => (
@@ -397,28 +401,35 @@ export default function ReadingPage() {
       </div>
 
       <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 backdrop-blur-sm py-2 px-2 z-[60] border-t border-border">
-        <div className="flex items-center gap-2 max-w-xs mx-auto bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out">
-          <Input
-            type="text"
-            placeholder={inputPlaceholder()}
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-            className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
-            disabled={isLoading || isAISpeaking}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={inputValue.trim() === '' || isLoading || isAISpeaking}
-            className="h-10 w-12 bg-primary text-primary-foreground rounded-xl shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out disabled:opacity-50 disabled:translate-y-0 disabled:shadow-[0_6px_0_hsl(var(--primary-darker))] flex items-center justify-center"
-            aria-label="Send message"
-          >
-            {sendButtonContent()}
-          </Button>
+        <div className="relative max-w-sm mx-auto">
+          <div className={cn(
+            "absolute left-0 right-0 bottom-0 h-[calc(100%_-_1px)] bg-primary-darker rounded-xl transition-opacity duration-150 ease-in-out",
+             isSendButtonDisabled ? "opacity-50" : "opacity-100"
+           )} style={{ transform: 'translateY(5px)'}} />
+          <div className="flex items-center gap-2 bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out relative z-10">
+            <Input
+              type="text"
+              placeholder={inputPlaceholder()}
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
+              disabled={isSendButtonDisabled}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={isSendButtonDisabled && inputValue.trim() === ''}
+              className={cn(
+                "h-10 w-12 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all duration-150 ease-in-out flex items-center justify-center relative",
+                !isSendButtonDisabled ? "active:translate-y-[5px]" : "opacity-50 translate-y-0"
+              )}
+              aria-label="Send message"
+            >
+              {sendButtonContent()}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-    

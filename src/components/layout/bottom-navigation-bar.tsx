@@ -2,18 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home } from 'lucide-react'; // Removed MessageSquarePlus
+import { Home } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  // { href: '/ask', label: 'Ask Doubt', icon: MessageSquarePlus }, // Removed
 ];
 
 export function BottomNavigationBar() {
   const pathname = usePathname();
 
-  // Return null or an empty fragment if there are no nav items to prevent rendering an empty bar
   if (navItems.length === 0) {
     return null; 
   }
@@ -27,8 +25,8 @@ export function BottomNavigationBar() {
             key={item.label}
             href={item.href}
             className={cn(
-              'flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-colors duration-150 ease-in-out transform active:scale-95',
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              'flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-all duration-150 ease-in-out transform active:scale-95', // Added 'transition-all'
+              isActive ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
