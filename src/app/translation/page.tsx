@@ -214,12 +214,13 @@ export default function TranslationPage() {
                       {message.evaluationResult.detailedFeedbackItems && message.evaluationResult.detailedFeedbackItems.length > 0 ? (
                         message.evaluationResult.detailedFeedbackItems.map((item, index) => (
                           <Card key={index} className={cn(
-                            "border-l-4 p-3 shadow-sm",
-                            item.errorType === 'grammar' ? "border-error bg-error/10 text-error-foreground" :
-                            item.errorType === 'vocabulary' ? "border-warning bg-warning/10 text-warning-foreground" :
-                            item.errorType === 'sentence_structure' ? "border-info bg-info/10 text-info-foreground" :
-                            item.errorType === 'meaning_accuracy' ? "border-destructive bg-destructive/10 text-destructive-foreground" :
-                            "border-muted bg-muted/20"
+                            "p-3 rounded-md shadow-sm border",
+                            item.errorType === 'grammar' ? "bg-error text-error-foreground border-error-foreground/30" :
+                            item.errorType === 'vocabulary' ? "bg-warning text-warning-foreground border-warning-foreground/30" :
+                            item.errorType === 'sentence_structure' ? "bg-info text-info-foreground border-info-foreground/30" :
+                            item.errorType === 'meaning_accuracy' ? "bg-destructive text-destructive-foreground border-destructive/30" :
+                            item.errorType === 'style' ? "bg-secondary text-secondary-foreground border-border" :
+                            "bg-muted text-muted-foreground border-border" // Fallback
                           )}>
                             <CardContent className="p-0 space-y-1">
                               {item.originalHindiSegment && (
@@ -290,3 +291,4 @@ export default function TranslationPage() {
     </div>
   );
 }
+
