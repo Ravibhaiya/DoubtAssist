@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow to fetch a short news article using a tool and generate comprehension questions.
@@ -76,7 +75,7 @@ const getNewsAndQuestionsFlow = ai.defineFlow(
   },
   async (flowInput: GetNewsAndQuestionsInput): Promise<GetNewsAndQuestionsOutput> => {
     const preferredDomains: string[] = [];
-    let query = 'India current events'; 
+    let query = 'India current events';
 
     if (flowInput.sourceHint) {
       const hintLower = flowInput.sourceHint.toLowerCase();
