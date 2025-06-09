@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
+import { ConversationFlowError, ValidationError, AIResponseError } from '@/ai/errors/conversationErrors';
 
 // Input validation constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -67,26 +68,6 @@ const ContinueConversationOutputSchema = z.object({
 });
 export type ContinueConversationOutput = z.infer<typeof ContinueConversationOutputSchema>;
 
-// Error types for better error handling
-export class ConversationFlowError extends Error {
-  constructor(message: string, public readonly code: string, public readonly originalError?: Error) {
-    super(message);
-    this.name = 'ConversationFlowError';
-  }
-}
-
-export class ValidationError extends ConversationFlowError {
-  constructor(message: string, originalError?: Error) {
-    super(message, 'VALIDATION_ERROR', originalError);
-  }
-}
-
-export class AIResponseError extends ConversationFlowError {
-  constructor(message: string, originalError?: Error) {
-    super(message, 'AI_RESPONSE_ERROR', originalError);
-  }
-}
-
 const continueConversationPrompt = ai.definePrompt({
   name: 'continueConversationPrompt',
   input: {schema: ContinueConversationInputSchema},
@@ -121,7 +102,7 @@ Your two primary tasks are:
         *   'clarityComment': Was the message easy to understand?
         *   'expressionComment': How natural did their phrasing sound?
         *   'toneComment': (Optional) Comment on politeness, friendliness, etc.
-        *   'alternativePhrasing': If the sentence structure was awkward or could be significantly improved for fluency, suggest a more natural way to phrase it with a simple explanation. Example: User: "What you do yesterday?" AI Suggestion: "You could say: 'What did you do yesterday?' This sounds more natural for past questions because we use 'did'."
+        *   'alternativePhrasing': If the user's sentence structure was awkward or could be significantly improved for fluency, suggest a more natural way to phrase it with a simple explanation. Example: User: "What you do yesterday?" AI Suggestion: "You could say: 'What did you do yesterday?' This sounds more natural for past questions because we use 'did'."
         *   'overallFluencyComment': A general remark on their conversational flow for this message.
         *   'fluencyScore': Optional score from 1-10
 
@@ -236,3 +217,5 @@ export async function continueConversation(input: ContinueConversationInput): Pr
     throw error;
   }
 }
+
+    
