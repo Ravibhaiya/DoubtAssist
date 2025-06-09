@@ -3,14 +3,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageCircle, BookOpenText, Languages } from 'lucide-react';
+import { Home } from 'lucide-react'; // Removed unused icons
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/reading', label: 'Reading', icon: BookOpenText },
-  { href: '/conversation', label: 'Chat', icon: MessageCircle },
-  { href: '/translation', label: 'Translate', icon: Languages },
+  // Other items removed as per request
 ];
 
 export function BottomNavigationBar() {
