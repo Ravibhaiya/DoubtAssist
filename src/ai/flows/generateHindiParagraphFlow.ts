@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import {ai} from '@/ai/genkit'; // Assuming your custom AI configuration lives here
+import {ai} from '@/ai/genkit';
 
 // Enhanced input schema with more variety controls
 const GenerateHindiParagraphInputSchema = z.object({
@@ -86,6 +86,7 @@ const generateHindiParagraphFlow = ai.defineFlow(
     outputSchema: GenerateHindiParagraphOutputSchema,
   },
   async (input) => {
+    // This prompt remains the same as it dynamically uses the input.
     const prompt = `
       You are an expert Hindi content creator specializing in generating diverse, authentic Hindi paragraphs for language learning and translation practice.
       
@@ -165,6 +166,7 @@ const generateHindiParagraphFlow = ai.defineFlow(
       - **academic:** Educational, scholarly themes
       - **domestic:** Home, family, household activities
       - **social:** Community, relationships, social interactions
+      - **general:** Broad, non-specific context.
 
       **Length Specifications:**
       - **Short:** 2-3 well-developed sentences
@@ -203,7 +205,7 @@ const generateHindiParagraphFlow = ai.defineFlow(
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
             { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_LOW_AND_ABOVE' },
         ],
-        temperature: 0.9, // Increased for more creative variety
+        temperature: 0.9,
       },
     });
 
@@ -217,15 +219,58 @@ const generateHindiParagraphFlow = ai.defineFlow(
 );
 
 export async function generateHindiParagraph(input: GenerateHindiParagraphInput): Promise<GenerateHindiParagraphOutput> {
-  const populatedInput = {
-      topic: input.topic || 'a general, everyday scene or observation',
-      tone: input.tone || 'neutral',
-      perspective: input.perspective || 'third-person',
-      textType: input.textType || 'description',
+  const defaultTopicPlaceholder = 'a general, everyday scene or observation';
+  const randomTopics = [
+    'एक यादगार यात्रा', // a memorable journey
+    'बचपन की एक याद', // a childhood memory
+    'दोस्ती का महत्व', // the importance of friendship
+    'एक ऐतिहासिक स्थल का दौरा', // a visit to a historical place
+    'मेरा पसंदीदा त्योहार', // my favorite festival
+    'एक छात्र के जीवन का एक दिन', // a day in the life of a student
+    'दैनिक जीवन पर प्रौद्योगिकी का प्रभाव', // the impact of technology on daily life
+    'एक मज़ेदार घटना', // a funny incident
+    'मेरे शौक और रुचियाँ', // my hobbies and interests
+    'एक सपना जो मैंने देखा', // a dream I had
+    'एक व्यस्त बाज़ार का दृश्य', // describing a bustling market scene
+    'मौसम में अचानक बदलाव का अनुभव', // experiencing a sudden change in weather
+    'एक नया कौशल सीखना', // learning a new skill
+    'एक अजनबी के साथ बातचीत', // a conversation with a stranger
+    'हाल की किसी समाचार घटना पर चिंतन' // reflecting on a recent news event
+  ];
+
+  const randomTextTypes: GenerateHindiParagraphInputSchema['shape']['textType']['_def']['values'] = [
+    'story', 'description', 'dialogue', 'news', 'letter', 'diary', 'opinion'
+  ];
+  const randomTones: GenerateHindiParagraphInputSchema['shape']['tone']['_def']['values'] = [
+    'neutral', 'narrative', 'descriptive', 'informal', 'conversational', 'emotional', 'humorous'
+  ];
+  const randomPerspectives: GenerateHindiParagraphInputSchema['shape']['perspective']['_def']['values'] = [
+    'first-person', 'second-person', 'third-person'
+  ];
+  const randomCulturalContexts: GenerateHindiParagraphInputSchema['shape']['culturalContext']['_def']['values'] = [
+    'traditional', 'modern', 'rural', 'urban', 'secular', 'pan-indian', 'domestic', 'social', 'general'
+  ];
+
+  let chosenTopic = input.topic;
+  if (!input.topic || input.topic === defaultTopicPlaceholder) {
+    chosenTopic = randomTopics[Math.floor(Math.random() * randomTopics.length)];
+  }
+
+  const chosenTextType = input.textType || randomTextTypes[Math.floor(Math.random() * randomTextTypes.length)];
+  const chosenTone = input.tone || randomTones[Math.floor(Math.random() * randomTones.length)];
+  const chosenPerspective = input.perspective || randomPerspectives[Math.floor(Math.random() * randomPerspectives.length)];
+  const chosenCulturalContext = input.culturalContext || randomCulturalContexts[Math.floor(Math.random() * randomCulturalContexts.length)];
+
+  const populatedInput: Required<GenerateHindiParagraphInput> = {
+      topic: chosenTopic!,
+      tone: chosenTone!,
+      perspective: chosenPerspective!,
+      textType: chosenTextType!,
       linguisticFocus: input.linguisticFocus || 'simple-present',
-      culturalContext: input.culturalContext || 'general',
+      culturalContext: chosenCulturalContext!,
       length: input.length || 'medium',
       vocabulary: input.vocabulary || 'everyday',
   };
+  
   return generateHindiParagraphFlow(populatedInput);
 }
