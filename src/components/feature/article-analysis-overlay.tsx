@@ -2,7 +2,11 @@
 "use client";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { analyzeArticleSentences, type AnalyzeArticleSentencesOutput, type AnalyzeArticleSentencesInput } from "@/ai/flows/analyzeArticleSentencesFlow";
 
 interface ArticleAnalysisOverlayProps {
   isOpen: boolean;
@@ -20,18 +24,21 @@ export function ArticleAnalysisOverlay({
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   const [internalScrollTop, setInternalScrollTop] = useState(0);
 
-  // Scroll-to-bottom-to-close logic & state retention for scroll
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeArticleSentencesOutput | null>(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const analysisTriggeredForArticleIdRef = useRef<string | null>(null);
+
+
   useEffect(() => {
     const contentElement = scrollableContentRef.current;
     if (isOpen && contentElement) {
-      // Restore scroll position
       contentElement.scrollTop = internalScrollTop;
 
       const handleScroll = () => {
         const currentScrollTop = contentElement.scrollTop;
-        setInternalScrollTop(currentScrollTop); // Save scroll position
+        setInternalScrollTop(currentScrollTop); 
 
-        // Check if scrolled to near bottom (within a small threshold)
         if (contentElement.scrollHeight - currentScrollTop <= contentElement.clientHeight + 5) {
           onClose();
         }
@@ -43,14 +50,17 @@ export function ArticleAnalysisOverlay({
     }
   }, [isOpen, onClose, internalScrollTop]);
 
-  // Reset internal scroll state when the overlay is truly closed or articleId changes
   useEffect(() => {
     if (!isOpen) {
       setInternalScrollTop(0);
+      // Optionally reset analysis when closed if you don't want to persist it
+      // setAnalysisResult(null); 
+      // setAnalysisError(null);
+      // setIsLoadingAnalysis(false);
+      // analysisTriggeredForArticleIdRef.current = null;
     }
   }, [isOpen]);
   
-  // If a new article is selected while overlay is already open, reset scroll
   useEffect(() => {
     if (isOpen && scrollableContentRef.current) {
         scrollableContentRef.current.scrollTop = 0;
@@ -58,53 +68,126 @@ export function ArticleAnalysisOverlay({
     }
   }, [articleId, isOpen])
 
+  useEffect(() => {
+    if (isOpen && articleContent && articleId && analysisTriggeredForArticleIdRef.current !== articleId) {
+      const fetchAnalysis = async () => {
+        setIsLoadingAnalysis(true);
+        setAnalysisResult(null);
+        setAnalysisError(null);
+        analysisTriggeredForArticleIdRef.current = articleId;
+        try {
+          const input: AnalyzeArticleSentencesInput = { articleContent };
+          const result = await analyzeArticleSentences(input);
+          setAnalysisResult(result);
+        } catch (error) {
+          console.error("Error analyzing article:", error);
+          setAnalysisError(error instanceof Error ? error.message : "Failed to analyze article. Please try again.");
+        } finally {
+          setIsLoadingAnalysis(false);
+        }
+      };
+      fetchAnalysis();
+    } else if (isOpen && articleContent && articleId && analysisTriggeredForArticleIdRef.current === articleId && !analysisResult && !isLoadingAnalysis && !analysisError) {
+      // This case might happen if analysis was reset upon close, and we need to re-fetch
+      // Or simply do nothing if we want to persist results across open/close for the same article.
+      // For now, let's assume if it was triggered and no result, it might be an error or still loading.
+      // If result is already there, it won't re-trigger.
+    }
+  }, [isOpen, articleContent, articleId, analysisResult, isLoadingAnalysis, analysisError]);
+
 
   return (
     <Sheet open={isOpen} onOpenChange={(openState) => { if (!openState) onClose(); }}>
       <SheetContent 
         side="bottom" 
-        className="h-screen flex flex-col p-4 sm:p-6" // Changed h-[85vh] to h-screen
-        onOpenAutoFocus={(e) => e.preventDefault()} // Prevents auto-focus on first element
+        className="h-screen flex flex-col p-4 sm:p-6"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        {/* Visual Grabber Handle - REMOVED */}
-        {/* <div 
-          className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mb-3"
-        /> */}
-
-        <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3 pt-2"> {/* Added pt-2 to give space now that handle is gone */}
+        <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3 pt-2">
           <SheetTitle className="text-lg font-semibold">Article Analysis</SheetTitle>
           {articleId && (
             <SheetDescription className="text-xs text-muted-foreground">
-              Analysing article snippet.
+              Sentence-by-sentence breakdown and simple explanation.
             </SheetDescription>
           )}
         </SheetHeader>
         
         <div ref={scrollableContentRef} className="flex-grow overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-          {/* Placeholder for future analysis content */}
-          <p className="text-sm text-foreground leading-relaxed">
-            This space will soon display a detailed analysis of the selected article. 
-            For now, you can scroll down to the bottom of this panel to close it.
-          </p>
-          
-          {articleContent && (
-            <div className="p-3 bg-muted/50 rounded-lg">
-                <h3 className="font-semibold text-sm mb-1.5 text-primary">Original Article Snippet:</h3>
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto custom-scrollbar">{articleContent}</p>
+          {isLoadingAnalysis && (
+            <div className="flex flex-col items-center justify-center h-full">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Analyzing article sentences...</p>
             </div>
           )}
 
-          {/* Dummy content to ensure scrollability for testing */}
-          {Array.from({ length: 25 }).map((_, i) => (
-            <div key={i} className="py-3 border-b border-border/70 last:border-b-0">
-              <h4 className="font-medium text-sm text-foreground">Placeholder Section {i + 1}</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                This is some placeholder text for section {i + 1}. More detailed content related to article analysis will be added here later. 
-                Keep scrolling to test the auto-close feature.
-              </p>
+          {analysisError && !isLoadingAnalysis && (
+            <div className="flex flex-col items-center justify-center h-full p-4 bg-destructive/10 rounded-lg">
+              <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+              <p className="text-destructive font-semibold mb-2">Analysis Failed</p>
+              <p className="text-sm text-destructive-foreground text-center mb-4">{analysisError}</p>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                   if (articleContent && articleId) {
+                    analysisTriggeredForArticleIdRef.current = null; // Allow re-trigger
+                    // Manually trigger refetch logic
+                    const fetchAnalysis = async () => {
+                        setIsLoadingAnalysis(true);
+                        setAnalysisResult(null);
+                        setAnalysisError(null);
+                        analysisTriggeredForArticleIdRef.current = articleId;
+                        try {
+                          const input: AnalyzeArticleSentencesInput = { articleContent };
+                          const result = await analyzeArticleSentences(input);
+                          setAnalysisResult(result);
+                        } catch (error) {
+                          console.error("Error analyzing article:", error);
+                          setAnalysisError(error instanceof Error ? error.message : "Failed to analyze article. Please try again.");
+                        } finally {
+                          setIsLoadingAnalysis(false);
+                        }
+                      };
+                    fetchAnalysis();
+                   }
+                }}
+              >
+                Try Again
+              </Button>
             </div>
-          ))}
-           <p className="text-center text-xs text-muted-foreground py-4">You've reached the end. The panel should close.</p>
+          )}
+
+          {analysisResult && !isLoadingAnalysis && !analysisError && (
+            <div className="space-y-6">
+              {analysisResult.analyses.length > 0 ? (
+                analysisResult.analyses.map((item, index) => (
+                  <Card key={index} className="bg-card shadow-lg border border-border/70">
+                    <CardHeader className="pb-3 pt-4 px-4">
+                      <p className="text-sm text-muted-foreground italic leading-relaxed">
+                        &ldquo;{item.originalSentence}&rdquo;
+                      </p>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <p className="text-sm text-primary font-semibold mb-1">Simple Explanation:</p>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {item.simpleExplanation}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-muted-foreground text-center py-10">No sentences were found or analyzed in this article.</p>
+              )}
+            </div>
+          )}
+          
+          {/* Fallback for when no article content is provided, though should ideally not happen if button is shown only for articles */}
+          {!articleContent && !isLoadingAnalysis && !analysisError && (
+             <p className="text-muted-foreground text-center py-10">No article content to analyze.</p>
+          )}
+
+          {/* This ensures scrollability for the close-on-scroll-to-bottom feature even if content is short */}
+          <div className="h-10"></div> 
+          <p className="text-center text-xs text-muted-foreground py-4">Scroll to the bottom to close.</p>
         </div>
       </SheetContent>
     </Sheet>

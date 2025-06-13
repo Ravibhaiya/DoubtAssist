@@ -8,6 +8,7 @@ import './flows/startConversationFlow';
 import './flows/continueConversationFlow';
 import './flows/generateHindiParagraphFlow';
 import './flows/evaluateHindiTranslationFlow';
+import './flows/analyzeArticleSentencesFlow';
 
 import './errors/conversationErrors';
 // Note: articleQueryErrors and newsFlowErrors might exist from previous states
