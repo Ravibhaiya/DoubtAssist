@@ -4,16 +4,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
-import { Send as SendIcon, Loader2, NotebookText } from 'lucide-react';
+import { Send as SendIcon, Loader2, NotebookText, Info } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArticleAnalysisOverlay } from "@/components/feature/article-analysis-overlay";
+import { TextExplainerOverlay } from "@/components/feature/text-explainer-overlay"; // Updated import
 
 import { getNewsAndQuestions, type GetNewsAndQuestionsOutput } from '@/ai/flows/readingComprehensionFlow';
 import { evaluateUserAnswer, type EvaluateUserAnswerInput, type EvaluateUserAnswerOutput } from '@/ai/flows/evaluateAnswerFlow';
 import { answerArticleQuery, type AnswerArticleQueryInput, type AnswerArticleQueryOutput } from '@/ai/flows/answerArticleQueryFlow';
-import { explainText, type ExplainTextInput, type ExplainTextOutput } from '@/ai/flows/explainTextFlow';
-
+// explainText flow is now called from the overlay, so direct import here might not be needed unless used elsewhere.
 
 interface Message {
   id: string;
@@ -22,9 +21,10 @@ interface Message {
   timestamp: Date;
   isLoading?: boolean;
   evaluationDetails?: EvaluateUserAnswerOutput;
-  explanationDetails?: ExplainTextOutput;
-  isArticle?: boolean; // To identify the main article message
-  articleFullText?: string; // To pass full article text for context
+  // explanationDetails are now handled by the overlay
+  isArticle?: boolean; 
+  articleFullText?: string; 
+  articleMessageId?: string; // To link article to its overlay trigger
 }
 
 type ReadingState = 'idle' | 'awaiting_answer' | 'evaluating' | 'error';
@@ -42,26 +42,30 @@ export default function ReadingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
 
-  // State for Article Analysis Overlay
-  const [isAnalysisOverlayOpen, setIsAnalysisOverlayOpen] = useState(false);
-  const [analysisArticleId, setAnalysisArticleId] = useState<string | null>(null);
-  const [analysisArticleContent, setAnalysisArticleContent] = useState<string | null>(null);
+  // State for Text Explainer Overlay
+  const [isExplainerOverlayOpen, setIsExplainerOverlayOpen] = useState(false);
+  const [explainerMode, setExplainerMode] = useState<'sentenceAnalysis' | 'wordExplanation' | null>(null);
+  const [explainerArticleContent, setExplainerArticleContent] = useState<string | null>(null);
+  const [explainerWord, setExplainerWord] = useState<string | null>(null);
+  const [explainerContextSentence, setExplainerContextSentence] = useState<string | null>(null);
+  const [explainerTriggerId, setExplainerTriggerId] = useState<string | null>(null); // To help key useEffect in overlay
 
 
   const addMessage = (
     sender: 'user' | 'ai',
     content: Partial<Omit<Message, 'id' | 'sender' | 'timestamp'>>
   ) => {
+    const newMessageId = Date.now().toString() + Math.random();
     const newMessage: Message = {
-      id: Date.now().toString() + Math.random(),
+      id: newMessageId,
       sender,
       timestamp: new Date(),
       text: content.text,
       isLoading: content.isLoading,
       evaluationDetails: content.evaluationDetails,
-      explanationDetails: content.explanationDetails,
       isArticle: content.isArticle,
       articleFullText: content.articleFullText,
+      articleMessageId: content.isArticle ? newMessageId : undefined,
     };
     setMessages(prevMessages => {
       if (content.isLoading && sender === 'ai') {
@@ -146,17 +150,11 @@ export default function ReadingPage() {
     setInputValue(e.target.value);
   };
 
-  const handleWordClick = async (word: string, fullArticleText?: string) => {
-    if (isLoading || isAISpeaking || !fullArticleText) return;
+  const handleWordClick = (word: string, fullArticleText: string, articleMsgId: string) => {
+    if (isLoading || isAISpeaking) return;
 
     const cleanedWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").trim();
     if (!cleanedWord) return;
-
-    addMessage('user', { text: `Explain: "${cleanedWord}"` });
-    setInputValue('');
-    setIsLoading(true);
-    setIsAISpeaking(true);
-    addMessage('ai', { text: "Explaining...", isLoading: true });
 
     let contextSentenceFound: string | undefined = undefined;
     const sentences = fullArticleText.split(/(?<=[.!?])\s+(?=[A-ZА-ЯЁ])/);
@@ -167,27 +165,22 @@ export default function ReadingPage() {
             break;
         }
     }
+    
+    setExplainerMode('wordExplanation');
+    setExplainerWord(cleanedWord);
+    setExplainerContextSentence(contextSentenceFound || null);
+    setExplainerArticleContent(null); // Not needed for word explanation mode directly from article
+    setExplainerTriggerId(articleMsgId + '-' + cleanedWord); // Unique trigger
+    setIsExplainerOverlayOpen(true);
+  };
 
-    try {
-      const explainInput: ExplainTextInput = { textToExplain: cleanedWord, contextSentence: contextSentenceFound };
-      const result = await explainText(explainInput);
-      addMessage(
-        'ai',
-        {
-          explanationDetails: result
-        }
-      );
-      addMessage('ai', { text: currentArticle ? "Anything else about the article, another explanation, or a new article?" : "Anything else you'd like to explain, or would you like a news article?" });
-      setReadingState('idle');
-    } catch (e) {
-      console.error("Error in handleWordClick:", e);
-      setMessages(prev => prev.filter(m => !(m.isLoading && m.sender === 'ai')));
-      addMessage('ai', { text: "Sorry, I couldn't explain that word right now."});
-      setReadingState('error');
-    } finally {
-      setIsLoading(false);
-      setIsAISpeaking(false);
-    }
+  const handleOpenSentenceAnalysis = (articleText: string, articleMsgId: string) => {
+    setExplainerMode('sentenceAnalysis');
+    setExplainerArticleContent(articleText);
+    setExplainerWord(null);
+    setExplainerContextSentence(null);
+    setExplainerTriggerId(articleMsgId); // Unique trigger
+    setIsExplainerOverlayOpen(true);
   };
   
   const isSendButtonDisabled = isLoading || isAISpeaking;
@@ -228,7 +221,7 @@ export default function ReadingPage() {
           addMessage('ai', { text: currentQuestions[nextQuestionIndex] });
           setReadingState('awaiting_answer');
         } else {
-          addMessage('ai', { text: "You've answered all questions for this article! Ask about the article, explain something, or request a 'new article'."});
+          addMessage('ai', { text: "You've answered all questions for this article! Ask about the article, trigger analysis/explanation, or request a 'new article'."});
           setReadingState('idle');
         }
       } else {
@@ -237,7 +230,7 @@ export default function ReadingPage() {
         let isRequestingNew = newArticleKeywords.some(keyword => lowerUserText.includes(keyword));
 
         if (!isRequestingNew && messages.length > 0) {
-          const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai' && !m.isLoading && !m.evaluationDetails && !m.explanationDetails && !m.isArticle);
+          const lastAiMessage = messages.slice().reverse().find(m => m.sender === 'ai' && !m.isLoading && !m.evaluationDetails && !m.isArticle);
           if (lastAiMessage && (lastAiMessage.text?.toLowerCase().includes("another one") || lastAiMessage.text?.toLowerCase().includes("new one") || lastAiMessage.text?.toLowerCase().includes("new article")) && (lowerUserText === "yes" || lowerUserText === "ok" || lowerUserText === "sure" || lowerUserText === "yeah") ) {
             isRequestingNew = true;
           }
@@ -252,20 +245,12 @@ export default function ReadingPage() {
           const queryInput: AnswerArticleQueryInput = { article: currentArticle, userQuery: userText };
           const queryResult = await answerArticleQuery(queryInput);
           addMessage('ai', { text: queryResult.answer });
-          addMessage('ai', { text: "Anything else about this article, explain something, or request a 'new article'?" });
+          addMessage('ai', { text: "Anything else about this article, or request a 'new article'?" });
           setReadingState('idle');
         } else {
-          loadingMessageText = "Explaining...";
-          addMessage('ai', { text: loadingMessageText, isLoading: true });
-          const explainInput: ExplainTextInput = { textToExplain: userText };
-          const result = await explainText(explainInput);
-          addMessage(
-            'ai',
-            {
-              explanationDetails: result
-            }
-          );
-          addMessage('ai', { text: currentArticle ? "Anything else about the article, another explanation, or a new article?" : "Anything else you'd like to explain, or would you like a news article?"});
+          // Fallback or if user types a word/phrase to explain directly (though UI guides to click)
+          // For now, let's assume direct text input is for queries or 'new article'
+          addMessage('ai', { text: "I can help with questions about the article, explain words you click in the article, or fetch a 'new article'. What would you like to do?" });
           setReadingState('idle');
         }
       }
@@ -297,8 +282,8 @@ export default function ReadingPage() {
   const inputPlaceholder = () => {
     if (isSendButtonDisabled) return "AI is working...";
     if (readingState === 'awaiting_answer') return "Type your answer...";
-    if (currentArticle) return "Ask about article, explain text, or 'new article'...";
-    return "Explain a word/phrase or type 'new article'";
+    if (currentArticle) return "Ask about article, or 'new article'...";
+    return "Type 'new article' to begin";
   }
 
   return (
@@ -326,23 +311,23 @@ export default function ReadingPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>{message.text || "Thinking..."}</span>
                   </div>
-                ) : message.isArticle && message.sender === 'ai' && message.text ? (
+                ) : message.isArticle && message.sender === 'ai' && message.text && message.articleMessageId ? (
                   <div>
                     <p className="text-sm break-words whitespace-pre-wrap">
-                      {message.text.split(/(\s+)/).map((segment, index) => {
-                        const isWordSegment = segment.trim().length > 0;
+                      {message.text.split(/(\s+|(?<=[^\w\s])|(?=[^\w\s]))/).map((segment, index) => { // Split by space and punctuation
+                        const isWordSegment = /\w/.test(segment) && segment.trim().length > 0;
                         if (isWordSegment) {
                           return (
                             <span
                               key={`${message.id}-word-${index}`}
                               className="cursor-pointer hover:underline text-accent transition-colors duration-150 ease-in-out"
-                              onClick={() => handleWordClick(segment, message.articleFullText)}
+                              onClick={() => handleWordClick(segment, message.articleFullText || "", message.articleMessageId!)}
                             >
                               {segment}
                             </span>
                           );
                         }
-                        return <span key={`${message.id}-space-${index}`}>{segment}</span>;
+                        return <span key={`${message.id}-segment-${index}`}>{segment}</span>;
                       })}
                     </p>
                     <Button
@@ -350,13 +335,11 @@ export default function ReadingPage() {
                       size="sm"
                       className="mt-3 w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
                       onClick={() => {
-                        setAnalysisArticleId(message.id);
-                        setAnalysisArticleContent(message.articleFullText || message.text || null);
-                        setIsAnalysisOverlayOpen(true);
+                        handleOpenSentenceAnalysis(message.articleFullText || message.text || "", message.articleMessageId!);
                       }}
                     >
                       <NotebookText className="mr-2 h-4 w-4" />
-                      Article Analysis
+                      Sentence Analysis
                     </Button>
                   </div>
                 ) : message.evaluationDetails ? (
@@ -382,33 +365,10 @@ export default function ReadingPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ) : message.explanationDetails ? (
-                   <Card className="bg-transparent border-0 shadow-none p-0">
-                    <CardContent className="p-0 text-sm space-y-3">
-                      {message.text && <p className="whitespace-pre-wrap break-words font-medium mb-2">{message.text}</p>}
-                      {message.explanationDetails.explanation && <p className="whitespace-pre-wrap break-words">{message.explanationDetails.explanation}</p>}
-                      {message.explanationDetails.originalContextUsed && (
-                        <div className="mt-2 p-3 rounded-lg shadow-sm bg-info text-info-foreground border border-info-foreground/30">
-                          <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Meaning in Context:</strong>
-                          <p className="whitespace-pre-wrap break-words italic">"{message.explanationDetails.originalContextUsed}"</p>
-                        </div>
-                      )}
-                      {message.explanationDetails.exampleSentences && message.explanationDetails.exampleSentences.length > 0 && (
-                        <div className="mt-2 p-3 rounded-lg shadow-sm bg-success text-success-foreground border border-success-foreground/30">
-                          <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Example Sentences:</strong>
-                          <ul className="list-disc list-inside space-y-1 pl-1">
-                            {message.explanationDetails.exampleSentences.map((ex, idx) => (
-                              <li key={idx} className="whitespace-pre-wrap break-words">{ex}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {!message.explanationDetails.explanation && !message.explanationDetails.originalContextUsed && (!message.explanationDetails.exampleSentences || message.explanationDetails.exampleSentences.length === 0) && message.text && (
-                         <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
-                       )}
-                    </CardContent>
-                  </Card>
-                ) : (
+                ) 
+                // Word explanation is now handled in the overlay
+                // : message.explanationDetails ... 
+                : (
                   message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
                 )}
               </div>
@@ -448,18 +408,24 @@ export default function ReadingPage() {
           </div>
         </div>
       </div>
-      <ArticleAnalysisOverlay
-        isOpen={isAnalysisOverlayOpen}
+      <TextExplainerOverlay
+        isOpen={isExplainerOverlayOpen}
         onClose={() => {
-          setIsAnalysisOverlayOpen(false);
-          setAnalysisArticleId(null);
-          setAnalysisArticleContent(null);
+          setIsExplainerOverlayOpen(false);
+          // Reset context for next open, unless we implement caching/persistence
+          setExplainerMode(null);
+          setExplainerArticleContent(null);
+          setExplainerWord(null);
+          setExplainerContextSentence(null);
+          setExplainerTriggerId(null);
         }}
-        articleId={analysisArticleId}
-        articleContent={analysisArticleContent}
+        mode={explainerMode}
+        articleContentForAnalysis={explainerArticleContent}
+        wordToExplain={explainerWord}
+        wordContextSentence={explainerContextSentence}
+        articleId={explainerTriggerId} // Use triggerId to ensure useEffects in overlay re-run for new content
       />
     </div>
   );
 }
 
-    
