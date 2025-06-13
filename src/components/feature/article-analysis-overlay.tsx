@@ -63,15 +63,15 @@ export function ArticleAnalysisOverlay({
     <Sheet open={isOpen} onOpenChange={(openState) => { if (!openState) onClose(); }}>
       <SheetContent 
         side="bottom" 
-        className="h-[85vh] flex flex-col p-4 sm:p-6"
+        className="h-screen flex flex-col p-4 sm:p-6" // Changed h-[85vh] to h-screen
         onOpenAutoFocus={(e) => e.preventDefault()} // Prevents auto-focus on first element
       >
-        {/* Visual Grabber Handle - Removed cursor-grab styles to avoid confusion */}
-        <div 
+        {/* Visual Grabber Handle - REMOVED */}
+        {/* <div 
           className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mb-3"
-        />
+        /> */}
 
-        <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3">
+        <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3 pt-2"> {/* Added pt-2 to give space now that handle is gone */}
           <SheetTitle className="text-lg font-semibold">Article Analysis</SheetTitle>
           {articleId && (
             <SheetDescription className="text-xs text-muted-foreground">
