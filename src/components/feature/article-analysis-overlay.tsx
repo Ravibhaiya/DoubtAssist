@@ -41,7 +41,7 @@ export function ArticleAnalysisOverlay({
         contentElement.removeEventListener("scroll", handleScroll);
       };
     }
-  }, [isOpen, onClose, internalScrollTop]); // internalScrollTop added to re-attach if it changes, though mainly driven by isOpen
+  }, [isOpen, onClose, internalScrollTop]);
 
   // Reset internal scroll state when the overlay is truly closed or articleId changes
   useEffect(() => {
@@ -66,16 +66,16 @@ export function ArticleAnalysisOverlay({
         className="h-[85vh] flex flex-col p-4 sm:p-6"
         onOpenAutoFocus={(e) => e.preventDefault()} // Prevents auto-focus on first element
       >
-        {/* Visual Grabber Handle */}
+        {/* Visual Grabber Handle - Removed cursor-grab styles to avoid confusion */}
         <div 
-          className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mb-3 cursor-grab active:cursor-grabbing"
+          className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted-foreground/40 mb-3"
         />
 
         <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3">
           <SheetTitle className="text-lg font-semibold">Article Analysis</SheetTitle>
           {articleId && (
             <SheetDescription className="text-xs text-muted-foreground">
-              Analysing article snippet. {/* Placeholder, real ID might not be needed for display */}
+              Analysing article snippet.
             </SheetDescription>
           )}
         </SheetHeader>
@@ -110,5 +110,3 @@ export function ArticleAnalysisOverlay({
     </Sheet>
   );
 }
-
-    
