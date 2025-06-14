@@ -51,7 +51,8 @@ export function TextExplainerOverlay({
         const currentScrollTop = contentElement.scrollTop;
         setInternalScrollTop(currentScrollTop);
 
-        if (contentElement.scrollHeight - currentScrollTop <= contentElement.clientHeight + 5) {
+        // Check if scrolled to the very bottom
+        if (contentElement.scrollHeight - currentScrollTop <= contentElement.clientHeight + 5) { // +5 for a little tolerance
           onClose();
         }
       };
@@ -313,7 +314,6 @@ export function TextExplainerOverlay({
         <div ref={scrollableContentRef} className="flex-grow overflow-y-auto pr-2 space-y-4 custom-scrollbar">
           {renderContent()}
           <div className="h-10"></div>
-          <p className="text-center text-xs text-muted-foreground py-4">Scroll to the bottom to close.</p>
         </div>
       </SheetContent>
     </Sheet>
