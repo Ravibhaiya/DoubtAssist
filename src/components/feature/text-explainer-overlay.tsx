@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -294,7 +295,7 @@ export function TextExplainerOverlay({
       <SheetContent
         side="bottom"
         className="h-screen flex flex-col p-4 sm:p-6"
-        onOpenAutoFocus={(e) => e.preventDefault()} // Keep this to prevent focus stealing if needed
+        onOpenAutoFocus={(e) => e.preventDefault()} 
       >
         <SheetHeader className="text-left mb-3 flex-shrink-0 border-b pb-3 pt-2">
           <SheetTitle className="text-lg font-semibold">
