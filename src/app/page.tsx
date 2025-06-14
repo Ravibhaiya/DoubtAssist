@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center pt-8">
+    <div className="container mx-auto p-4 flex flex-col items-center pt-16">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
         <Link href="/reading">
           <Button
