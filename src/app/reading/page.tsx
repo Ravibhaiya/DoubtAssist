@@ -7,12 +7,11 @@ import { useState, type ChangeEvent, type KeyboardEvent, useEffect, useRef } fro
 import { Send as SendIcon, Loader2, NotebookText, Info } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { TextExplainerOverlay } from "@/components/feature/text-explainer-overlay"; // Updated import
+import { TextExplainerOverlay } from "@/components/feature/text-explainer-overlay";
 
 import { getNewsAndQuestions, type GetNewsAndQuestionsOutput } from '@/ai/flows/readingComprehensionFlow';
 import { evaluateUserAnswer, type EvaluateUserAnswerInput, type EvaluateUserAnswerOutput } from '@/ai/flows/evaluateAnswerFlow';
 import { answerArticleQuery, type AnswerArticleQueryInput, type AnswerArticleQueryOutput } from '@/ai/flows/answerArticleQueryFlow';
-// explainText flow is now called from the overlay, so direct import here might not be needed unless used elsewhere.
 
 interface Message {
   id: string;
@@ -21,10 +20,9 @@ interface Message {
   timestamp: Date;
   isLoading?: boolean;
   evaluationDetails?: EvaluateUserAnswerOutput;
-  // explanationDetails are now handled by the overlay
-  isArticle?: boolean; 
-  articleFullText?: string; 
-  articleMessageId?: string; // To link article to its overlay trigger
+  isArticle?: boolean;
+  articleFullText?: string;
+  articleMessageId?: string;
 }
 
 type ReadingState = 'idle' | 'awaiting_answer' | 'evaluating' | 'error';
@@ -33,7 +31,7 @@ export default function ReadingPage() {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
-  const initialFetchDoneRef = useRef(false); 
+  const initialFetchDoneRef = useRef(false);
 
   const [currentArticle, setCurrentArticle] = useState<string | null>(null);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
@@ -42,13 +40,12 @@ export default function ReadingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
 
-  // State for Text Explainer Overlay
   const [isExplainerOverlayOpen, setIsExplainerOverlayOpen] = useState(false);
   const [explainerMode, setExplainerMode] = useState<'sentenceAnalysis' | 'wordExplanation' | null>(null);
   const [explainerArticleContent, setExplainerArticleContent] = useState<string | null>(null);
   const [explainerWord, setExplainerWord] = useState<string | null>(null);
   const [explainerContextSentence, setExplainerContextSentence] = useState<string | null>(null);
-  const [explainerTriggerId, setExplainerTriggerId] = useState<string | null>(null); // To help key useEffect in overlay
+  const [explainerTriggerId, setExplainerTriggerId] = useState<string | null>(null);
 
 
   const addMessage = (
@@ -131,12 +128,12 @@ export default function ReadingPage() {
   };
 
   useEffect(() => {
-    if (!initialFetchDoneRef.current) { 
+    if (!initialFetchDoneRef.current) {
       fetchNews();
-      initialFetchDoneRef.current = true; 
+      initialFetchDoneRef.current = true;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -165,12 +162,12 @@ export default function ReadingPage() {
             break;
         }
     }
-    
+
     setExplainerMode('wordExplanation');
     setExplainerWord(cleanedWord);
     setExplainerContextSentence(contextSentenceFound || null);
-    setExplainerArticleContent(null); // Not needed for word explanation mode directly from article
-    setExplainerTriggerId(articleMsgId + '-' + cleanedWord); // Unique trigger
+    setExplainerArticleContent(null);
+    setExplainerTriggerId(articleMsgId + '-' + cleanedWord);
     setIsExplainerOverlayOpen(true);
   };
 
@@ -179,10 +176,10 @@ export default function ReadingPage() {
     setExplainerArticleContent(articleText);
     setExplainerWord(null);
     setExplainerContextSentence(null);
-    setExplainerTriggerId(articleMsgId); // Unique trigger
+    setExplainerTriggerId(articleMsgId);
     setIsExplainerOverlayOpen(true);
   };
-  
+
   const isSendButtonDisabled = isLoading || isAISpeaking;
 
   const handleSend = async () => {
@@ -248,8 +245,6 @@ export default function ReadingPage() {
           addMessage('ai', { text: "Anything else about this article, or request a 'new article'?" });
           setReadingState('idle');
         } else {
-          // Fallback or if user types a word/phrase to explain directly (though UI guides to click)
-          // For now, let's assume direct text input is for queries or 'new article'
           addMessage('ai', { text: "I can help with questions about the article, explain words you click in the article, or fetch a 'new article'. What would you like to do?" });
           setReadingState('idle');
         }
@@ -314,7 +309,7 @@ export default function ReadingPage() {
                 ) : message.isArticle && message.sender === 'ai' && message.text && message.articleMessageId ? (
                   <div>
                     <p className="text-sm break-words whitespace-pre-wrap">
-                      {message.text.split(/(\s+|(?<=[^\w\s])|(?=[^\w\s]))/).map((segment, index) => { // Split by space and punctuation
+                      {message.text.split(/(\s+|(?<=[^\w\s])|(?=[^\w\s]))/).map((segment, index) => {
                         const isWordSegment = /\w/.test(segment) && segment.trim().length > 0;
                         if (isWordSegment) {
                           return (
@@ -365,9 +360,7 @@ export default function ReadingPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ) 
-                // Word explanation is now handled in the overlay
-                // : message.explanationDetails ... 
+                )
                 : (
                   message.text && <p className="text-sm break-words whitespace-pre-wrap">{message.text}</p>
                 )}
@@ -378,41 +371,42 @@ export default function ReadingPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 backdrop-blur-sm py-2 px-2 z-[60] border-t border-border">
-        <div className="relative max-w-sm mx-auto">
-          <div className={cn(
-            "absolute left-0 right-0 bottom-0 h-[calc(100%_-_1px)] bg-primary-darker rounded-xl transition-opacity duration-150 ease-in-out",
-             isSendButtonDisabled ? "opacity-50" : "opacity-100"
-           )} style={{ transform: 'translateY(5px)'}} />
-          <div className="flex items-center gap-2 bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out relative z-10">
-            <Input
-              type="text"
-              placeholder={inputPlaceholder()}
-              value={inputValue}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
-              disabled={isSendButtonDisabled}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={isSendButtonDisabled && inputValue.trim() === ''}
-              className={cn(
-                "h-10 w-12 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all duration-150 ease-in-out flex items-center justify-center relative",
-                !isSendButtonDisabled ? "active:translate-y-[5px]" : "opacity-50 translate-y-0"
-              )}
-              aria-label="Send message"
-            >
-              {sendButtonContent()}
-            </Button>
+      {!isExplainerOverlayOpen && (
+        <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 w-full bg-background/80 backdrop-blur-sm py-2 px-2 z-[60] border-t border-border">
+          <div className="relative max-w-sm mx-auto">
+            <div className={cn(
+              "absolute left-0 right-0 bottom-0 h-[calc(100%_-_1px)] bg-primary-darker rounded-xl transition-opacity duration-150 ease-in-out",
+              isSendButtonDisabled ? "opacity-50" : "opacity-100"
+            )} style={{ transform: 'translateY(5px)'}} />
+            <div className="flex items-center gap-2 bg-card border-2 border-primary rounded-xl shadow-lg p-1.5 focus-within:border-primary/70 transition-colors duration-300 ease-in-out relative z-10">
+              <Input
+                type="text"
+                placeholder={inputPlaceholder()}
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 text-base h-auto placeholder:text-muted-foreground"
+                disabled={isSendButtonDisabled}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={isSendButtonDisabled && inputValue.trim() === ''}
+                className={cn(
+                  "h-10 w-12 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all duration-150 ease-in-out flex items-center justify-center relative",
+                  !isSendButtonDisabled ? "active:translate-y-[5px]" : "opacity-50 translate-y-0"
+                )}
+                aria-label="Send message"
+              >
+                {sendButtonContent()}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       <TextExplainerOverlay
         isOpen={isExplainerOverlayOpen}
         onClose={() => {
           setIsExplainerOverlayOpen(false);
-          // Reset context for next open, unless we implement caching/persistence
           setExplainerMode(null);
           setExplainerArticleContent(null);
           setExplainerWord(null);
@@ -423,9 +417,9 @@ export default function ReadingPage() {
         articleContentForAnalysis={explainerArticleContent}
         wordToExplain={explainerWord}
         wordContextSentence={explainerContextSentence}
-        articleId={explainerTriggerId} // Use triggerId to ensure useEffects in overlay re-run for new content
+        articleId={explainerTriggerId}
       />
     </div>
   );
 }
-
+    
