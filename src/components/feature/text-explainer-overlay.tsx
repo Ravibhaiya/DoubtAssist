@@ -16,7 +16,7 @@ interface TextExplainerOverlayProps {
   articleContentForAnalysis: string | null;
   wordToExplain: string | null;
   wordContextSentence: string | null;
-  articleId: string | null; // Keep for unique keying if needed for caching/useEffect triggers
+  articleId: string | null; 
 }
 
 export function TextExplainerOverlay({
@@ -51,8 +51,7 @@ export function TextExplainerOverlay({
         const currentScrollTop = contentElement.scrollTop;
         setInternalScrollTop(currentScrollTop);
 
-        // Check if scrolled to the very bottom
-        if (contentElement.scrollHeight - currentScrollTop <= contentElement.clientHeight + 5) { // +5 for a little tolerance
+        if (contentElement.scrollHeight - currentScrollTop <= contentElement.clientHeight + 5) { 
           onClose();
         }
       };
@@ -66,7 +65,6 @@ export function TextExplainerOverlay({
   useEffect(() => {
     if (!isOpen) {
       setInternalScrollTop(0);
-      // Reset states when closed to ensure fresh data on next open for a different item/mode
       setSentenceAnalysisResult(null);
       setSentenceAnalysisError(null);
       setIsLoadingSentenceAnalysis(false);
@@ -86,14 +84,13 @@ export function TextExplainerOverlay({
   }, [articleId, wordToExplain, mode, isOpen]);
 
 
-  // Fetch Sentence Analysis
   useEffect(() => {
     if (isOpen && mode === 'sentenceAnalysis' && articleContentForAnalysis && articleId && analysisTriggeredForArticleIdRef.current !== articleId) {
       const fetchAnalysis = async () => {
         setIsLoadingSentenceAnalysis(true);
         setSentenceAnalysisResult(null);
         setSentenceAnalysisError(null);
-        setWordExplanationResult(null); // Clear other mode's data
+        setWordExplanationResult(null); 
         analysisTriggeredForArticleIdRef.current = articleId;
         explanationTriggeredForWordRef.current = null;
         try {
@@ -111,15 +108,14 @@ export function TextExplainerOverlay({
     }
   }, [isOpen, mode, articleContentForAnalysis, articleId]);
 
-  // Fetch Word Explanation
   useEffect(() => {
-    const uniqueWordContextKey = wordToExplain ? `${wordToExplain}-${wordContextSentence || ''}` : null;
+    const uniqueWordContextKey = wordToExplain ? `${wordToExplain}-${wordContextSentence || ''}-${articleId}` : null;
     if (isOpen && mode === 'wordExplanation' && wordToExplain && uniqueWordContextKey && explanationTriggeredForWordRef.current !== uniqueWordContextKey) {
       const fetchExplanation = async () => {
         setIsLoadingWordExplanation(true);
         setWordExplanationResult(null);
         setWordExplanationError(null);
-        setSentenceAnalysisResult(null); // Clear other mode's data
+        setSentenceAnalysisResult(null); 
         explanationTriggeredForWordRef.current = uniqueWordContextKey;
         analysisTriggeredForArticleIdRef.current = null;
 
@@ -136,13 +132,11 @@ export function TextExplainerOverlay({
       };
       fetchExplanation();
     }
-  }, [isOpen, mode, wordToExplain, wordContextSentence]);
+  }, [isOpen, mode, wordToExplain, wordContextSentence, articleId]);
 
   const handleRetrySentenceAnalysis = () => {
     if (articleContentForAnalysis && articleId) {
-      analysisTriggeredForArticleIdRef.current = null; // Allow re-trigger
-      // Manually trigger refetch logic by updating a dep or directly calling
-      // For simplicity, we'll rely on the useEffect hook by nullifying the ref
+      analysisTriggeredForArticleIdRef.current = null; 
       const fetchAnalysis = async () => {
           setIsLoadingSentenceAnalysis(true);
           setSentenceAnalysisResult(null);
@@ -165,12 +159,12 @@ export function TextExplainerOverlay({
 
   const handleRetryWordExplanation = () => {
     if (wordToExplain) {
-      explanationTriggeredForWordRef.current = null; // Allow re-trigger
+      explanationTriggeredForWordRef.current = null; 
        const fetchExplanation = async () => {
         setIsLoadingWordExplanation(true);
         setWordExplanationResult(null);
         setWordExplanationError(null);
-        explanationTriggeredForWordRef.current = wordToExplain ? `${wordToExplain}-${wordContextSentence || ''}` : null;
+        explanationTriggeredForWordRef.current = wordToExplain ? `${wordToExplain}-${wordContextSentence || ''}-${articleId}` : null;
         try {
           const input: ExplainTextInput = { textToExplain: wordToExplain, contextSentence: wordContextSentence || undefined };
           const result = await explainText(input);
@@ -257,13 +251,22 @@ export function TextExplainerOverlay({
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 text-sm space-y-3">
-              {wordExplanationResult.explanation && <p className="whitespace-pre-wrap break-words">{wordExplanationResult.explanation}</p>}
-              {wordExplanationResult.originalContextUsed && (
+              {wordExplanationResult.generalExplanation && (
+                <p className="whitespace-pre-wrap break-words">{wordExplanationResult.generalExplanation}</p>
+              )}
+              
+              {wordExplanationResult.contextualExplanation && (
                 <div className="mt-2 p-3 rounded-lg shadow-sm bg-info text-info-foreground border border-info-foreground/30">
                   <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Meaning in Context:</strong>
-                  <p className="whitespace-pre-wrap break-words italic">"{wordExplanationResult.originalContextUsed}"</p>
+                  {wordExplanationResult.originalContextSentence && (
+                    <p className="whitespace-pre-wrap break-words italic text-xs mb-1 text-info-foreground/80">
+                      (Regarding the sentence: "{wordExplanationResult.originalContextSentence}")
+                    </p>
+                  )}
+                  <p className="whitespace-pre-wrap break-words">{wordExplanationResult.contextualExplanation}</p>
                 </div>
               )}
+
               {wordExplanationResult.exampleSentences && wordExplanationResult.exampleSentences.length > 0 && (
                 <div className="mt-2 p-3 rounded-lg shadow-sm bg-success text-success-foreground border border-success-foreground/30">
                   <strong className="font-semibold block mb-1 text-xs uppercase tracking-wider">Example Sentences:</strong>
@@ -274,7 +277,8 @@ export function TextExplainerOverlay({
                   </ul>
                 </div>
               )}
-               {!wordExplanationResult.explanation && !wordExplanationResult.originalContextUsed && (!wordExplanationResult.exampleSentences || wordExplanationResult.exampleSentences.length === 0) && (
+              
+               {!wordExplanationResult.generalExplanation && !wordExplanationResult.contextualExplanation && (!wordExplanationResult.exampleSentences || wordExplanationResult.exampleSentences.length === 0) && (
                  <p className="text-muted-foreground text-center py-5">No specific explanation details found for this word/phrase.</p>
                )}
             </CardContent>
@@ -283,11 +287,10 @@ export function TextExplainerOverlay({
       }
     }
 
-    // Fallback for when no mode is active or no content for the mode yet
     if (!articleContentForAnalysis && !wordToExplain && !isLoadingSentenceAnalysis && !isLoadingWordExplanation) {
        return <p className="text-muted-foreground text-center py-10">Select an article or word to see details.</p>;
     }
-    return null; // Or some other placeholder
+    return null; 
   };
 
 
@@ -313,7 +316,7 @@ export function TextExplainerOverlay({
 
         <div ref={scrollableContentRef} className="flex-grow overflow-y-auto pr-2 space-y-4 custom-scrollbar">
           {renderContent()}
-          <div className="h-10"></div>
+          {/* Removed "Scroll to the bottom to close" text */}
         </div>
       </SheetContent>
     </Sheet>
