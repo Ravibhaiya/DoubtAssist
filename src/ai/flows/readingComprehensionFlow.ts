@@ -18,7 +18,7 @@ const GetNewsAndQuestionsInputSchema = z.object({
 export type GetNewsAndQuestionsInput = z.infer<typeof GetNewsAndQuestionsInputSchema>;
 
 const GetNewsAndQuestionsOutputSchema = z.object({
-  article: z.string().describe('The main content or a comprehensive summary of the news article in English. If no article can be found or summarized, this field should state that.'),
+  article: z.string().describe('The full content of the news article in English, as provided by the news tool. If the full content is unavailable or very brief, a comprehensive summary or description snippet may be used. If no article can be found, this field should state that.'),
   articleDate: z.string().describe('The publication date of the news article (e.g., "YYYY-MM-DD"). If no article is found, this can be "N/A".'),
   questions: z.array(z.string()).min(1).max(2).describe('An array of 1 to 2 comprehension questions based on the article. If no article, this might contain a general follow-up question.'),
   articleUrl: z.string().optional().describe("The URL of the original news article, if available. This should be a valid URL string."),
@@ -49,11 +49,11 @@ News Article Data:
 Your tasks are:
 1.  **Process Article Data (if available):**
     {{#if toolOutput}}
-    a.  Using the 'Full Content' (if substantial) or the 'Description Snippet' from the tool's output, provide the main content or a comprehensive summary of the news article. This will be the 'article' field in your JSON output.
+    a.  Prioritize using the 'Full Content' field from the tool's output directly as the 'article' field in your JSON output. If 'Full Content' is unavailable or very short (less than a few sentences), then use the 'Description Snippet'. Avoid summarizing if substantial 'Full Content' is present. The goal is to provide the user with as much of the original article text as NewsData.io has provided.
     b.  The 'articleDate' field in your JSON output MUST be extracted from the 'Published At' date from the tool output. 'Published At' is in ISO 8601 format (e.g., "2024-07-15T10:30:00.000Z"); format 'articleDate' as "YYYY-MM-DD" (e.g., "2024-07-15").
     c.  The 'articleUrl' field should be the 'URL' from the tool output.
     d.  The 'articleSource' field should be the 'Source ID' (sourceName) from the tool output.
-    e.  Based *only* on the summary you created, generate 1 or 2 clear comprehension questions. These questions should test understanding of the main points of your summary.
+    e.  Based *only* on the article text you have decided to use (either full content or description), generate 1 or 2 clear comprehension questions. These questions should test understanding of the main points of that text.
     {{else}}
     a.  Since no article was found by the tool, set the 'article' field in your JSON output to a polite message stating that an article could not be fetched (e.g., "I was unable to retrieve a news article at this time using NewsData.io. The service might be temporarily unavailable or no recent articles matched the criteria. Please try again later.").
     b.  Set 'articleDate' to "N/A".
@@ -63,8 +63,8 @@ Your tasks are:
 
 2.  **Output Format:** Ensure your entire response is a single JSON object matching the GetNewsAndQuestionsOutputSchema.
 
-Focus on using the provided text ('Full Content' or 'Description Snippet') for summarization. Do not invent details.
-Ensure the article summarization and questions are based *only* on the provided 'toolOutput'. The article should be generally recent and suitable for a reading comprehension exercise.
+Focus on using the provided text ('Full Content' or 'Description Snippet') for the article. Do not invent details.
+Ensure the article text and questions are based *only* on the provided 'toolOutput'. The article should be generally recent and suitable for a reading comprehension exercise.
 `,
 });
 
