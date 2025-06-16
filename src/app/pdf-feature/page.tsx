@@ -11,9 +11,8 @@ import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Loader2, AlertTriangle, UploadCloud, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Configure PDF.js worker
-// Use the version of pdfjs-dist specified in package.json (currently 4.4.168)
-// Reverting to the UMD worker (.min.js) as it's often more compatible with older react-pdf versions.
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+// Use the version of pdfjs-dist specified in package.json (currently 3.11.174)
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 
 export default function PdfFeaturePage() {
