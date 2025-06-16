@@ -3,7 +3,6 @@
 
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import { NewspaperIcon, MessageSquareQuote, Languages, BookOpen } from "lucide-react";
 
 export default function Home() {
   return (
@@ -13,15 +12,13 @@ export default function Home() {
           <Button
             className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
           >
-            <BookOpen className="mr-2 h-5 w-5" />
-            Reading & Comprehension
+            Reading Comprehension
           </Button>
         </Link>
         <Link href="/conversation">
           <Button
             className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
           >
-            <MessageSquareQuote className="mr-2 h-5 w-5" />
             Conversation Practice
           </Button>
         </Link>
@@ -29,16 +26,7 @@ export default function Home() {
           <Button
             className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
           >
-            <Languages className="mr-2 h-5 w-5" />
             Translation Exercise
-          </Button>
-        </Link>
-        <Link href="/newspaper">
-          <Button
-            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 flex items-center justify-center gap-3 text-base"
-          >
-            <NewspaperIcon className="mr-2 h-5 w-5" />
-            Newspaper
           </Button>
         </Link>
         <Button

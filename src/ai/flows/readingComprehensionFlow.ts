@@ -18,10 +18,10 @@ const GetNewsAndQuestionsInputSchema = z.object({
 export type GetNewsAndQuestionsInput = z.infer<typeof GetNewsAndQuestionsInputSchema>;
 
 const GetNewsAndQuestionsOutputSchema = z.object({
-  article: z.string().describe('A summarized news article in English, approximately 100-300 words long. If no article can be found or summarized, this field should state that.'),
+  article: z.string().describe('The main content or a comprehensive summary of the news article in English. If no article can be found or summarized, this field should state that.'),
   articleDate: z.string().describe('The publication date of the news article (e.g., "YYYY-MM-DD"). If no article is found, this can be "N/A".'),
   questions: z.array(z.string()).min(1).max(2).describe('An array of 1 to 2 comprehension questions based on the article. If no article, this might contain a general follow-up question.'),
-  articleUrl: z.string().optional().describe("The URL of the original news article, if available. This should be a valid URL string."), // No .url() here
+  articleUrl: z.string().optional().describe("The URL of the original news article, if available. This should be a valid URL string."),
   articleSource: z.string().optional().describe("The source ID/name of the news article (e.g., 'thehindu', 'timesofindia'), if available."),
 });
 export type GetNewsAndQuestionsOutput = z.infer<typeof GetNewsAndQuestionsOutputSchema>;
@@ -49,7 +49,7 @@ News Article Data:
 Your tasks are:
 1.  **Process Article Data (if available):**
     {{#if toolOutput}}
-    a.  Using the 'Full Content' (if substantial) or the 'Description Snippet' from the tool's output, create a concise summary of the news article. This summary MUST be in English and be between 100 and 300 words. This will be the 'article' field in your JSON output.
+    a.  Using the 'Full Content' (if substantial) or the 'Description Snippet' from the tool's output, provide the main content or a comprehensive summary of the news article. This will be the 'article' field in your JSON output.
     b.  The 'articleDate' field in your JSON output MUST be extracted from the 'Published At' date from the tool output. 'Published At' is in ISO 8601 format (e.g., "2024-07-15T10:30:00.000Z"); format 'articleDate' as "YYYY-MM-DD" (e.g., "2024-07-15").
     c.  The 'articleUrl' field should be the 'URL' from the tool output.
     d.  The 'articleSource' field should be the 'Source ID' (sourceName) from the tool output.
