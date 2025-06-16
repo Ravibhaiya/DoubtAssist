@@ -9,12 +9,10 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Loader2, AlertTriangle, UploadCloud, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { workerSrc } from 'pdfjs-dist/webpack';
 
-// Configure PDF.js worker using new URL method for better bundler compatibility
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 
 export default function PdfFeaturePage() {
