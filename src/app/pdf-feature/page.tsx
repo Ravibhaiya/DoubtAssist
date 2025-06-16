@@ -12,7 +12,7 @@ import { Loader2, AlertTriangle, UploadCloud, ZoomIn, ZoomOut, ChevronLeft, Chev
 
 // Configure PDF.js worker
 // Use the version of pdfjs-dist specified in package.json (currently 4.4.168)
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
 
 
 export default function PdfFeaturePage() {
