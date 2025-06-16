@@ -12,18 +12,18 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 
-export const ProcessPdfNewspaperInputSchema = z.object({
+const ProcessPdfNewspaperInputSchema = z.object({
   pdfUrl: z.string().url().describe('The URL of the newspaper PDF, expected to be a Google Drive link.'),
 });
 export type ProcessPdfNewspaperInput = z.infer<typeof ProcessPdfNewspaperInputSchema>;
 
-export const TopicSectionSchema = z.object({
+const TopicSectionSchema = z.object({
   topicTitle: z.string().describe('The title of the identified news topic/section.'),
   content: z.string().describe('The full text content belonging to this topic/section.'),
 });
 export type TopicSection = z.infer<typeof TopicSectionSchema>;
 
-export const ProcessPdfNewspaperOutputSchema = z.object({
+const ProcessPdfNewspaperOutputSchema = z.object({
   topics: z.array(TopicSectionSchema).describe('An array of news sections, each with a topic title and its content.'),
   message: z.string().optional().describe('An optional message, e.g., if processing was partially successful or if no topics were found.'),
 });
