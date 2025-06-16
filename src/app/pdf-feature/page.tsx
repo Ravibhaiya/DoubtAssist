@@ -10,9 +10,11 @@ import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import { Loader2, AlertTriangle, UploadCloud, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Configure PDF.js worker
-// Ensure the worker is copied to public/static by next.config.js
-pdfjs.GlobalWorkerOptions.workerSrc = `/static/pdf.worker.min.mjs`;
+// Configure PDF.js worker using new URL method for better bundler compatibility
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 
 export default function PdfFeaturePage() {
