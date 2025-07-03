@@ -1,36 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-
-const responses = [
-    "That sounds interesting! Tell me more.",
-    "I completely understand what you mean.",
-    "Haha, that's so funny! 😄",
-    "Really? That's amazing!",
-    "I've been thinking about that too.",
-    "You're absolutely right about that.",
-    "Thanks for sharing that with me!",
-    "That's a great point!",
-    "I hadn't thought of it that way.",
-    "Wow, that's really cool!",
-    "That's exactly what I was thinking!",
-    "You always have the best ideas! 💡",
-    "I'm so glad you told me that!",
-    "That made my day! 😊",
-    "You're the best! Thanks for sharing!"
-];
+import { startConversation } from '@/ai/flows/startConversationFlow';
+import { continueConversation } from '@/ai/flows/continueConversationFlow';
 
 interface Message {
     text: string;
     isSent: boolean;
     time: string;
 }
-
-const initialMessages: Message[] = [
-    { text: "Hey! How are you doing today?", isSent: false, time: "10:30 AM" },
-    { text: "I'm doing great, thanks for asking! How about you?", isSent: true, time: "10:32 AM" },
-    { text: "Pretty good! Just working on some projects. What have you been up to?", isSent: false, time: "10:33 AM" },
-];
 
 function getCurrentTime() {
     const now = new Date();
@@ -42,7 +20,7 @@ function SuccessFeedback() {
 }
 
 export default function TwilightMessengerPage() {
-    const [messages, setMessages] = useState<Message[]>(initialMessages);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -59,9 +37,28 @@ export default function TwilightMessengerPage() {
             });
         }
     }, [messages, isTyping]);
-    
+
     useEffect(() => {
-        messageInputRef.current?.focus();
+        const fetchOpeningMessage = async () => {
+            setIsTyping(true);
+            try {
+                const response = await startConversation({});
+                if (response.openingMessage) {
+                    addMessage(response.openingMessage, false);
+                }
+            } catch (error) {
+                console.error("Error starting conversation:", error);
+                addMessage("I'm having some trouble starting up. Please try again later.", false);
+            } finally {
+                setIsTyping(false);
+                messageInputRef.current?.focus();
+            }
+        };
+
+        if (messages.length === 0) {
+            fetchOpeningMessage();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -77,31 +74,37 @@ export default function TwilightMessengerPage() {
         setMessages(prev => [...prev, { text, isSent, time: getCurrentTime() }]);
     };
 
-    const simulateJohnResponse = () => {
+    const getAIResponse = async (userMessage: string) => {
         setIsTyping(true);
-        const typingDuration = 1200 + Math.random() * 2500;
-        
-        setTimeout(() => {
+        try {
+            const response = await continueConversation({ userMessage });
+            if(response.aiReply) {
+                addMessage(response.aiReply, false);
+            } else {
+                addMessage("I'm not sure what to say to that.", false);
+            }
+        } catch (error) {
+            console.error("Error getting AI response:", error);
+            addMessage("Sorry, I'm having a little trouble right now. Please try again later.", false);
+        } finally {
             setIsTyping(false);
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            addMessage(randomResponse, false);
-        }, typingDuration);
+            messageInputRef.current?.focus();
+        }
     };
 
     const sendMessage = () => {
         const text = inputValue.trim();
-        if (text && !isSending) {
+        if (text && !isSending && !isTyping) {
             setIsSending(true);
             setShowSuccess(true);
             
+            addMessage(text, true);
+            setInputValue('');
+            
+            // Short delay to allow "sent" animation to be seen
             setTimeout(() => {
-                addMessage(text, true);
-                setInputValue('');
-                
                 setIsSending(false);
-                messageInputRef.current?.focus();
-                
-                setTimeout(simulateJohnResponse, 800 + Math.random() * 1500);
+                getAIResponse(text);
             }, 200);
         }
     };
@@ -163,9 +166,10 @@ export default function TwilightMessengerPage() {
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyPress={handleKeyPress}
                                 placeholder="Type a message..."
+                                disabled={isTyping || isSending}
                             />
                         </div>
-                        <button className={`send-btn ${isSending ? 'sending' : ''}`} onClick={sendMessage} disabled={isSending}>
+                        <button className={`send-btn ${isSending ? 'sending' : ''}`} onClick={sendMessage} disabled={isSending || isTyping}>
                             <svg className="send-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
                             </svg>
