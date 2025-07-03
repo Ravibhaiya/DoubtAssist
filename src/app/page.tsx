@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { startConversation } from '@/ai/flows/startConversationFlow';
-import { continueConversation } from '@/ai/flows/continueConversationFlow';
+import { continueConversation, type ContinueConversationInput } from '@/ai/flows/continueConversationFlow';
 
 interface Message {
     text: string;
@@ -74,10 +75,19 @@ export default function TwilightMessengerPage() {
         setMessages(prev => [...prev, { text, isSent, time: getCurrentTime() }]);
     };
 
-    const getAIResponse = async (userMessage: string) => {
+    const getAIResponse = async (userMessage: string, currentHistory: Message[]) => {
         setIsTyping(true);
+        
+        const historyForFlow = currentHistory.map(msg => ({
+            role: msg.isSent ? 'user' : 'model' as 'user' | 'model',
+            text: msg.text,
+        }));
+
         try {
-            const response = await continueConversation({ userMessage });
+            const response = await continueConversation({ 
+                userMessage: userMessage,
+                history: historyForFlow,
+            });
             if(response.aiReply) {
                 addMessage(response.aiReply, false);
             } else {
@@ -98,13 +108,14 @@ export default function TwilightMessengerPage() {
             setIsSending(true);
             setShowSuccess(true);
             
+            const currentHistory = [...messages]; // Capture history BEFORE adding the new message
             addMessage(text, true);
             setInputValue('');
             
             // Short delay to allow "sent" animation to be seen
             setTimeout(() => {
                 setIsSending(false);
-                getAIResponse(text);
+                getAIResponse(text, currentHistory);
             }, 200);
         }
     };
