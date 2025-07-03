@@ -1,12 +1,9 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
-import { BottomNavigationBar } from '@/components/layout/bottom-navigation-bar';
-import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'DoubtAssist & Language Practice',
-  description: 'Your personal AI assistant for doubts, English conversation, and translation practice.',
+  title: 'Twilight Messenger - John',
+  description: 'A chat interface.',
 };
 
 export default function RootLayout({
@@ -17,18 +14,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;700&display=swap" rel="stylesheet" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body className="font-body antialiased bg-background text-foreground overflow-x-hidden">
-        <div className="flex flex-col min-h-screen">
-          <main className="flex-grow pb-16 sm:pb-0"> {/* pb-16 for bottom nav space on mobile, 0 on sm+ */}
-            {children}
-          </main>
-          <BottomNavigationBar />
-        </div>
-        <Toaster />
+      <body>
+        {children}
       </body>
     </html>
   );

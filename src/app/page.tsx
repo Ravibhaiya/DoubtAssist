@@ -1,53 +1,58 @@
+import React from 'react';
 
-"use client";
-
-import { Button } from "@/components/ui/button";
-import Link from 'next/link';
-
-export default function Home() {
+export default function TwilightMessengerPage() {
   return (
-    <div className="container mx-auto p-4 flex flex-col items-center pt-16">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
-        <Link href="/reading">
-          <Button
-            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          >
-            Reading Comprehension
-          </Button>
-        </Link>
-        <Link href="/conversation">
-          <Button
-            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          >
-            Conversation Practice
-          </Button>
-        </Link>
-        <Link href="/translation">
-          <Button
-            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          >
-            Translation Exercise
-          </Button>
-        </Link>
-        <Link href="/pdf-feature">
-          <Button
-            className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          >
-            PDF
-          </Button>
-        </Link>
-        <Button
-          className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          
-        >
-          Cloze Test
-        </Button>
-        <Button
-          className="w-full px-8 py-6 uppercase tracking-[1.5px] font-bold rounded-xl bg-primary text-primary-foreground shadow-[0_6px_0_hsl(var(--primary-darker))] active:shadow-none active:translate-y-[6px] hover:bg-primary/90 transition-all duration-150 ease-in-out hover:scale-105 text-base justify-center"
-          
-        >
-          Grammar Exercises
-        </Button>
+    <div className="phone-container">
+      <div className="screen">
+        <header className="header">
+          <button className="back-btn" aria-label="Back">{'←'}</button>
+          <div className="profile-info">
+            <div className="avatar">J</div>
+            <div className="contact-info">
+              <h3>John</h3>
+              <span className="online-status">
+                <span className="online-dot"></span>
+                Online
+              </span>
+            </div>
+          </div>
+          <button className="menu-btn" aria-label="Menu">{'…'}</button>
+        </header>
+
+        <main className="chat-container">
+          <div className="message received">
+            <div className="message-bubble">
+              <p>Hey! I saw the prototype, it's looking great. Just a few thoughts.</p>
+              <div className="message-time">10:42 AM</div>
+            </div>
+          </div>
+          <div className="message sent">
+            <div className="message-bubble">
+              <p>Oh, awesome! Glad you like it. What's on your mind?</p>
+              <div className="message-time">10:43 AM</div>
+            </div>
+          </div>
+          <div className="message received">
+            <div className="message-bubble">
+              <p>The login flow feels a bit clunky. Maybe we can simplify the animations?</p>
+              <div className="message-time">10:44 AM</div>
+            </div>
+          </div>
+          <div className="typing-indicator show">
+            <div className="typing-dots">
+              <div className="dot"></div>
+              <div className="dot"></div>
+              <div className="dot"></div>
+            </div>
+          </div>
+        </main>
+
+        <footer className="input-area">
+          <div className="input-container">
+            <input type="text" className="message-input" placeholder="Type a message..." />
+          </div>
+          <button className="send-btn" aria-label="Send">{'→'}</button>
+        </footer>
       </div>
     </div>
   );
