@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { continueConversation } from '@/ai/flows/continueConversationFlow';
 import { checkGrammar } from '@/ai/flows/checkGrammarFlow';
 import { explainWord } from '@/ai/flows/explainWordFlow';
+import { Check, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
 
 // Define types for our data structures
 interface Message {
@@ -18,6 +19,7 @@ interface Message {
 interface GrammarCorrection {
   correctedSentence: string;
   explanation: string;
+  errorType: 'none' | 'minor' | 'major';
 }
 
 interface WordDetails {
@@ -37,18 +39,6 @@ function getCurrentTime() {
 // Word Explainer Overlay Component
 function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: string | null; details: WordDetails | null; isLoading: boolean; onClose: () => void; }) {
     if (!word) return null;
-
-    const synonymsHTML = details?.synonyms && details.synonyms.length > 0
-        ? `<div class="tag-container">${details.synonyms.map(s => `<span class="tag">${s}</span>`).join('')}</div>`
-        : '<p>No synonyms found.</p>';
-    
-    const antonymsHTML = details?.antonyms && details.antonyms.length > 0
-        ? `<div class="tag-container">${details.antonyms.map(a => `<span class="tag">${a}</span>`).join('')}</div>`
-        : '<p>No antonyms found.</p>';
-
-    const examplesHTML = details?.examples && details.examples.length > 0
-        ? `<ul>${details.examples.map(e => `<li>${e}</li>`).join('')}</ul>`
-        : '<p>No examples found.</p>';
 
     return (
         <div className={`word-overlay ${word ? 'show' : ''}`} onClick={onClose}>
@@ -71,15 +61,19 @@ function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: str
                         </div>
                         <div id="detailSynonyms" className="detail-box">
                             <h4>Synonyms</h4>
-                            <div dangerouslySetInnerHTML={{ __html: synonymsHTML }}></div>
+                            <div className="tag-container">
+                                {details.synonyms.length > 0 ? details.synonyms.map(s => `<span class="tag">${s}</span>`).join('') : '<p>No synonyms found.</p>'}
+                            </div>
                         </div>
                         <div id="detailAntonyms" className="detail-box">
                             <h4>Antonyms</h4>
-                            <div dangerouslySetInnerHTML={{ __html: antonymsHTML }}></div>
+                            <div className="tag-container">
+                                {details.antonyms.length > 0 ? details.antonyms.map(a => `<span class="tag">${a}</span>`).join('') : '<p>No antonyms found.</p>'}
+                            </div>
                         </div>
                         <div id="detailExamples" className="detail-box">
                             <h4>Example Sentences</h4>
-                            <div dangerouslySetInnerHTML={{ __html: examplesHTML }}></div>
+                            <ul>{details.examples.length > 0 ? details.examples.map(e => `<li>${e}</li>`).join('') : '<p>No examples found.</p>'}</ul>
                         </div>
                     </>
                 ) : (
@@ -102,26 +96,52 @@ function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: str
 function GrammarCorrectionOverlay({ correction, onClose }: { correction: GrammarCorrection | null; onClose: () => void; }) {
     if (!correction) return null;
 
+    const isGood = correction.errorType === 'none';
+
+    const headerIcon = () => {
+        switch (correction.errorType) {
+            case 'none': return <CheckCircle2 width="28" height="28" />;
+            case 'minor': return <AlertTriangle width="28" height="28" />;
+            case 'major': return <XCircle width="28" height="28" />;
+        }
+    };
+    
+    const headerText = () => {
+        switch (correction.errorType) {
+            case 'none': return "Looks Good!";
+            case 'minor': return "Minor Tip";
+            case 'major': return "Grammar Tip";
+        }
+    };
+
+
     return (
         <div className="word-overlay show" onClick={onClose}>
             <div className="word-details-panel" onClick={(e) => e.stopPropagation()}>
                 <div className="word-details-header">
-                    <h2 className="grammar-overlay-header">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                           <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill="currentColor"/>
-                        </svg>
-                        <span>Grammar Tip</span>
+                    <h2 className={`grammar-overlay-header ${correction.errorType}`}>
+                        {headerIcon()}
+                        <span>{headerText()}</span>
                     </h2>
                     <button className="close-overlay-btn" onClick={onClose}>&times;</button>
                 </div>
-                <div id="detailCorrected" className="detail-box">
-                    <h4>Corrected Sentence</h4>
-                    <p className="corrected-text">{correction.correctedSentence}</p>
-                </div>
-                <div id="detailExplanation" className="detail-box">
-                    <h4>Explanation</h4>
-                    <p>{correction.explanation}</p>
-                </div>
+                {isGood ? (
+                    <div id="detailCorrected" className="detail-box">
+                        <h4>All Clear</h4>
+                        <p>No grammatical errors were found in your message. Keep it up!</p>
+                    </div>
+                ) : (
+                    <>
+                        <div id="detailCorrected" className="detail-box">
+                            <h4>Corrected Sentence</h4>
+                            <p className="corrected-text">{correction.correctedSentence}</p>
+                        </div>
+                        <div id="detailExplanation" className="detail-box">
+                            <h4>Explanation</h4>
+                            <p>{correction.explanation}</p>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -232,7 +252,7 @@ export default function DoubtAssistPage() {
             }
 
             // Handle grammar result - update the sent message
-            if (grammarResult && grammarResult.hasErrors) {
+            if (grammarResult) {
                 setMessages(prev =>
                     prev.map(msg =>
                         msg.id === sentMessageId
@@ -270,6 +290,19 @@ export default function DoubtAssistPage() {
         }
         return msg.text;
     };
+
+    const renderGrammarIcon = (correction: GrammarCorrection) => {
+        switch (correction.errorType) {
+            case 'none':
+                return <Check width="16" height="16" strokeWidth="3" />;
+            case 'minor':
+                return <AlertTriangle width="14" height="14" strokeWidth="2.5" fill="white" stroke="var(--warning-color)" />;
+            case 'major':
+                 return <XCircle width="16" height="16" strokeWidth="2.5" />;
+            default:
+                return null;
+        }
+    };
     
     return (
       <>
@@ -299,10 +332,8 @@ export default function DoubtAssistPage() {
                                     <div className="message-time">{msg.time}</div>
                                 </div>
                                 {msg.type === 'sent' && msg.correctionData && (
-                                    <button className="grammar-icon-btn" onClick={() => setSelectedCorrection(msg.correctionData!)}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M20 6L9 17l-5-5"/>
-                                        </svg>
+                                    <button className={`grammar-icon-btn ${msg.correctionData.errorType}`} onClick={() => setSelectedCorrection(msg.correctionData!)}>
+                                        {renderGrammarIcon(msg.correctionData)}
                                     </button>
                                 )}
                             </div>

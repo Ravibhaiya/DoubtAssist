@@ -4,7 +4,7 @@
  * 
  * - checkGrammar - Analyzes user text and provides corrections if needed.
  * - CheckGrammarInput - Input type: { userText: string }.
- * - CheckGrammarOutput - Output type: { hasErrors: boolean, correctedSentence: string, explanation: string }.
+ * - CheckGrammarOutput - Output type: { hasErrors: boolean, errorType: 'none' | 'minor' | 'major', correctedSentence: string, explanation: string }.
  */
 
 import {ai} from '@/ai/genkit';
@@ -17,6 +17,7 @@ export type CheckGrammarInput = z.infer<typeof CheckGrammarInputSchema>;
 
 const CheckGrammarOutputSchema = z.object({
   hasErrors: z.boolean().describe("Whether any grammatical errors were found."),
+  errorType: z.enum(['none', 'minor', 'major']).describe("The type of error found: 'none' for no errors, 'minor' for punctuation/capitalization/spelling, or 'major' for grammatical structure issues."),
   correctedSentence: z.string().describe("The corrected version of the sentence. Empty if no errors."),
   explanation: z.string().describe("An explanation of the correction. Empty if no errors."),
 });
@@ -31,10 +32,17 @@ const grammarCheckPrompt = ai.definePrompt({
     The JSON object must have the following strict structure:
     {
       "hasErrors": boolean,
+      "errorType": "'none' | 'minor' | 'major'",
       "correctedSentence": "string",
       "explanation": "string"
     }
-    If there are no errors, "hasErrors" must be false, "correctedSentence" must be an empty string, and "explanation" must be an empty string. If the user input is trivial (e.g., "hi", "ok", a single word with no obvious error), treat it as having no errors. If the input is not in English, set hasErrors to false.`,
+    
+    Error Classification Rules:
+    - If there are no errors: "hasErrors" must be false, "errorType" must be "none", and the other fields must be empty strings.
+    - If the user input is trivial (e.g., "hi", "ok", a single word with no obvious error), treat it as having no errors.
+    - If there are only minor mistakes (e.g., spelling, punctuation, capitalization): "hasErrors" must be true, and "errorType" must be "minor".
+    - If there are major grammatical errors (e.g., sentence structure, verb tense, subject-verb agreement, word choice): "hasErrors" must be true, and "errorType" must be "major".
+    - If the input is not in English, set hasErrors to false and errorType to "none".`,
 });
 
 const checkGrammarFlow = ai.defineFlow(
@@ -44,10 +52,19 @@ const checkGrammarFlow = ai.defineFlow(
     outputSchema: CheckGrammarOutputSchema,
   },
   async (input) => {
+    // Don't check grammar for very short messages
+    if (input.userText.trim().split(/\s+/).length < 2 && input.userText.length < 10) {
+      return { hasErrors: false, errorType: 'none', correctedSentence: '', explanation: '' };
+    }
+
     const {output} = await grammarCheckPrompt(input);
     if (!output) {
       // Return a "no errors" response if the model fails
-      return { hasErrors: false, correctedSentence: '', explanation: '' };
+      return { hasErrors: false, errorType: 'none', correctedSentence: '', explanation: '' };
+    }
+    // Ensure that if hasErrors is false, errorType is 'none'
+    if (!output.hasErrors) {
+      output.errorType = 'none';
     }
     return output;
   }
