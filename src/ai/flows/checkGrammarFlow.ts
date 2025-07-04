@@ -42,6 +42,7 @@ const grammarCheckPrompt = ai.definePrompt({
     - If the user input is trivial (e.g., "hi", "ok", a single word with no obvious error), treat it as having no errors.
     - If there are only minor mistakes (e.g., spelling, punctuation, capitalization): "hasErrors" must be true, and "errorType" must be "minor".
     - If there are major grammatical errors (e.g., sentence structure, verb tense, subject-verb agreement, word choice): "hasErrors" must be true, and "errorType" must be "major".
+    - **Tense-Specific Feedback**: If you find a verb tense mistake, your explanation must clearly state that it's a tense error and explain how to fix it. For example: "The verb 'goes' is in the wrong tense. It should be 'went' to match the past-tense context of the sentence."
     - If the input is not in English, set hasErrors to false and errorType to "none".`,
 });
 

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { continueConversation } from '@/ai/flows/continueConversationFlow';
-import { checkGrammar } from '@/ai/flows/checkGrammarFlow';
-import { explainWord } from '@/ai/flows/explainWordFlow';
-import { Check, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
+import { checkGrammar, type CheckGrammarOutput } from '@/ai/flows/checkGrammarFlow';
+import { explainMessage, type ExplainMessageOutput } from '@/ai/flows/explainMessageFlow';
+import { Check, AlertTriangle, XCircle, CheckCircle2, MessageSquareQuote } from 'lucide-react';
 
 // Define types for our data structures
 interface Message {
@@ -12,23 +12,7 @@ interface Message {
   text: string;
   type: 'sent' | 'received';
   time: string;
-  correctionData?: GrammarCorrection;
-  context?: string;
-}
-
-interface GrammarCorrection {
-  correctedSentence: string;
-  explanation: string;
-  errorType: 'none' | 'minor' | 'major';
-}
-
-interface WordDetails {
-    word: string;
-    definition: string;
-    contextualMeaning: string;
-    synonyms: string[];
-    antonyms: string[];
-    examples: string[];
+  correctionData?: CheckGrammarOutput;
 }
 
 // Helper to get current time as a string
@@ -36,62 +20,36 @@ function getCurrentTime() {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Word Explainer Overlay Component
-function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: string | null; details: WordDetails | null; isLoading: boolean; onClose: () => void; }) {
-    if (!word) return null;
+// Message Explainer Overlay Component
+function MessageExplainerOverlay({ explainerData, isLoading, onClose }: { explainerData: ExplainMessageOutput | null; isLoading: boolean; onClose: () => void; }) {
+    const show = isLoading || !!explainerData;
 
     return (
-        <div className={`word-overlay ${word ? 'show' : ''}`} onClick={onClose}>
-            <div className="word-details-panel" onClick={(e) => e.stopPropagation()}>
+        <div className={`generic-overlay ${show ? 'show' : ''}`} onClick={onClose}>
+            <div className="details-panel" onClick={(e) => e.stopPropagation()}>
                 {isLoading ? (
-                    <div className="overlay-loader">Analyzing word...</div>
-                ) : details ? (
+                    <div className="overlay-loader">Analyzing message...</div>
+                ) : explainerData ? (
                     <>
-                        <div className="word-details-header">
-                            <h2>{details.word}</h2>
+                        <div className="details-header message-explainer-header">
+                            <h2>Message Explained</h2>
                             <button className="close-overlay-btn" onClick={onClose}>&times;</button>
                         </div>
-                        <div id="detailMeaning" className="detail-box">
-                            <h4>Definition</h4>
-                            <p dangerouslySetInnerHTML={{ __html: details.definition }}></p>
-                        </div>
-                        <div id="detailContextualMeaning" className="detail-box">
-                            <h4>Meaning in Context</h4>
-                            <p dangerouslySetInnerHTML={{ __html: details.contextualMeaning }}></p>
-                        </div>
-                        <div id="detailSynonyms" className="detail-box">
-                            <h4>Synonyms</h4>
-                            <div className="tag-container" dangerouslySetInnerHTML={{ __html: details.synonyms.length > 0 ? details.synonyms.map(s => `<span class="tag">${s}</span>`).join('') : '<p>No synonyms found.</p>' }}>
+                        {explainerData.explanations.map((item, index) => (
+                            <div key={index} className="sentence-explanation-box">
+                                <blockquote>{item.sentence}</blockquote>
+                                <p>{item.explanation}</p>
                             </div>
-                        </div>
-                        <div id="detailAntonyms" className="detail-box">
-                            <h4>Antonyms</h4>
-                            <div className="tag-container" dangerouslySetInnerHTML={{ __html: details.antonyms.length > 0 ? details.antonyms.map(a => `<span class="tag">${a}</span>`).join('') : '<p>No antonyms found.</p>'}}>
-                            </div>
-                        </div>
-                        <div id="detailExamples" className="detail-box">
-                            <h4>Example Sentences</h4>
-                            <ul dangerouslySetInnerHTML={{ __html: details.examples.length > 0 ? details.examples.map(e => `<li>${e}</li>`).join('') : '<p>No examples found.</p>'}}></ul>
-                        </div>
+                        ))}
                     </>
-                ) : (
-                     <>
-                        <div className="word-details-header">
-                            <h2>Error</h2>
-                            <button className="close-overlay-btn" onClick={onClose}>&times;</button>
-                        </div>
-                        <div className="detail-box">
-                          <p>Sorry, I couldn't fetch the details for "{word}". Please try another word.</p>
-                        </div>
-                    </>
-                )}
+                ) : null}
             </div>
         </div>
     );
 }
 
 // Grammar Correction Overlay Component
-function GrammarCorrectionOverlay({ correction, onClose }: { correction: GrammarCorrection | null; onClose: () => void; }) {
+function GrammarCorrectionOverlay({ correction, onClose }: { correction: CheckGrammarOutput | null; onClose: () => void; }) {
     if (!correction) return null;
 
     const isGood = correction.errorType === 'none';
@@ -112,11 +70,10 @@ function GrammarCorrectionOverlay({ correction, onClose }: { correction: Grammar
         }
     };
 
-
     return (
-        <div className="word-overlay show" onClick={onClose}>
-            <div className="word-details-panel" onClick={(e) => e.stopPropagation()}>
-                <div className="word-details-header">
+        <div className="generic-overlay show" onClick={onClose}>
+            <div className="details-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="details-header">
                     <h2 className={`grammar-overlay-header ${correction.errorType}`}>
                         {headerIcon()}
                         <span>{headerText()}</span>
@@ -151,14 +108,13 @@ export default function JohnPage() {
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     
-    // State for Word Explainer
-    const [selectedWord, setSelectedWord] = useState<string | null>(null);
-    const [selectedWordContext, setSelectedWordContext] = useState<string | null>(null);
-    const [wordDetails, setWordDetails] = useState<WordDetails | null>(null);
-    const [isOverlayLoading, setIsOverlayLoading] = useState(false);
+    // State for Message Explainer
+    const [selectedMessageForExplainer, setSelectedMessageForExplainer] = useState<string | null>(null);
+    const [explainerData, setExplainerData] = useState<ExplainMessageOutput | null>(null);
+    const [isExplainerLoading, setIsExplainerLoading] = useState(false);
 
     // State for Grammar Correction
-    const [selectedCorrection, setSelectedCorrection] = useState<GrammarCorrection | null>(null);
+    const [selectedCorrection, setSelectedCorrection] = useState<CheckGrammarOutput | null>(null);
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -177,43 +133,42 @@ export default function JohnPage() {
     useEffect(() => {
         setMessages([{
             id: 0,
-            text: "Hello! I'm John. Feel free to chat with me. If I notice a grammar mistake in your message, I'll offer a helpful tip. You can also click on any word I say to get more details about it.",
+            text: "Hello! I'm John. Feel free to chat with me. If I notice a grammar mistake in your message, I'll offer a helpful tip. You can also click on any message I say to get a simple explanation of it.",
             type: 'received',
             time: getCurrentTime(),
-            context: "Hello! I'm John. Feel free to chat with me. If I notice a grammar mistake in your message, I'll offer a helpful tip. You can also click on any word I say to get more details about it."
         }]);
         inputRef.current?.focus();
     }, []);
 
-    // Effect to fetch word details when a word is selected
+    // Effect to fetch message explanation when a message is selected
     useEffect(() => {
-        if (selectedWord && selectedWordContext) {
-            const fetchDetails = async () => {
-                setIsOverlayLoading(true);
-                setWordDetails(null);
+        if (selectedMessageForExplainer) {
+            const fetchExplanation = async () => {
+                setIsExplainerLoading(true);
+                setExplainerData(null);
                 try {
-                    const details = await explainWord({ word: selectedWord, context: selectedWordContext });
-                    setWordDetails(details);
+                    const details = await explainMessage({ message: selectedMessageForExplainer });
+                    setExplainerData(details);
                 } catch (error) {
-                    console.error("Failed to fetch word details:", error);
-                    setWordDetails(null);
+                    console.error("Failed to fetch message explanation:", error);
+                    // Optionally, set an error state to show in the overlay
+                    setExplainerData(null); 
                 } finally {
-                    setIsOverlayLoading(false);
+                    setIsExplainerLoading(false);
                 }
             };
-            fetchDetails();
+            fetchExplanation();
         }
-    }, [selectedWord, selectedWordContext]);
+    }, [selectedMessageForExplainer]);
 
     // Adds a new message to the state and returns its ID
-    const addMessage = (text: string, type: 'sent' | 'received', context?: string): number => {
+    const addMessage = (text: string, type: 'sent' | 'received'): number => {
         const newMessageId = Date.now();
         const newMessage: Message = {
             id: newMessageId,
             text,
             type,
             time: getCurrentTime(),
-            context,
         };
         setMessages(prev => [...prev, newMessage]);
         return newMessageId;
@@ -246,7 +201,7 @@ export default function JohnPage() {
 
             // Handle conversation result
             if (conversationResult && conversationResult.aiReply) {
-                addMessage(conversationResult.aiReply, 'received', conversationResult.aiReply);
+                addMessage(conversationResult.aiReply, 'received');
             }
 
             // Handle grammar result - update the sent message
@@ -269,27 +224,11 @@ export default function JohnPage() {
         }
     };
     
-    const handleWordClick = (word: string, context: string) => {
-        const cleanWord = word.replace(/[.,!?;"“'”]/g, '').trim();
-        if (cleanWord && cleanWord.match(/[a-zA-Z]/)) {
-            setSelectedWord(cleanWord);
-            setSelectedWordContext(context);
-        }
+    const handleMessageClick = (messageText: string) => {
+        setSelectedMessageForExplainer(messageText);
     };
 
-    const renderMessageContent = (msg: Message) => {
-        if (msg.type === 'received' && msg.context) {
-            return msg.text.split(/(\s+)/).map((part, index) => {
-                 if (part.trim().length > 0) {
-                    return <span key={index} className="ai-word" onClick={() => handleWordClick(part, msg.context!)}>{part}</span>;
-                 }
-                 return part;
-            });
-        }
-        return msg.text;
-    };
-
-    const renderGrammarIcon = (correction: GrammarCorrection) => {
+    const renderGrammarIcon = (correction: CheckGrammarOutput) => {
         switch (correction.errorType) {
             case 'none':
                 return <Check width="16" height="16" strokeWidth="3" />;
@@ -322,15 +261,15 @@ export default function JohnPage() {
                 <div className="chat-container" ref={chatContainerRef}>
                     {messages.map(msg => (
                         <div key={msg.id} className={`message ${msg.type}`}>
-                            <div className="message-bubble" data-context={msg.context}>
+                            <div className="message-bubble" onClick={msg.type === 'received' ? () => handleMessageClick(msg.text) : undefined}>
                                 <div className="message-text-wrapper">
                                     <div className="message-text">
-                                      {renderMessageContent(msg)}
+                                      {msg.text}
                                     </div>
                                     <div className="message-time">{msg.time}</div>
                                 </div>
                                 {msg.type === 'sent' && msg.correctionData && (
-                                    <button className={`grammar-icon-btn ${msg.correctionData.errorType}`} onClick={() => setSelectedCorrection(msg.correctionData!)}>
+                                    <button className={`grammar-icon-btn ${msg.correctionData.errorType}`} onClick={(e) => { e.stopPropagation(); setSelectedCorrection(msg.correctionData!); }}>
                                         {renderGrammarIcon(msg.correctionData)}
                                     </button>
                                 )}
@@ -369,11 +308,10 @@ export default function JohnPage() {
                 </div>
             </div>
         </div>
-        <WordExplainerOverlay
-            word={selectedWord}
-            details={wordDetails}
-            isLoading={isOverlayLoading}
-            onClose={() => setSelectedWord(null)}
+        <MessageExplainerOverlay
+            explainerData={explainerData}
+            isLoading={isExplainerLoading}
+            onClose={() => setSelectedMessageForExplainer(null)}
         />
         <GrammarCorrectionOverlay 
             correction={selectedCorrection}

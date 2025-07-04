@@ -180,6 +180,12 @@ body {
     background: var(--surface-secondary-translucent);
     color: var(--text-secondary);
     border-bottom-left-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.message.received .message-bubble:hover {
+    background: var(--surface-secondary);
 }
 
 .message.sent .message-bubble {
@@ -209,18 +215,6 @@ body {
     white-space: nowrap;
 }
 .message.received .message-time { text-align: left; }
-
-.ai-word {
-    cursor: pointer;
-    transition: color 0.2s ease, background-color 0.2s ease;
-    padding: 1px 2px;
-    border-radius: 3px;
-    margin: -1px -2px;
-}
-.ai-word:hover {
-    background-color: var(--accent-color-1);
-    color: white;
-}
 
 .typing-indicator {
     display: none;
@@ -350,8 +344,8 @@ body {
     box-shadow: none;
 }
 
-/* Word Detail Overlay */
-.word-overlay {
+/* Generic Overlay Styles */
+.generic-overlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -366,11 +360,11 @@ body {
     pointer-events: none;
     transition: opacity 0.3s ease;
 }
-.word-overlay.show {
+.generic-overlay.show {
     opacity: 1;
     pointer-events: auto;
 }
-.word-details-panel {
+.details-panel {
     background: var(--surface-primary);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
@@ -383,10 +377,10 @@ body {
     transform: scale(0.95);
     transition: transform 0.3s ease;
 }
-.word-overlay.show .word-details-panel {
+.generic-overlay.show .details-panel {
     transform: scale(1);
 }
-.word-details-header {
+.details-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -394,13 +388,7 @@ body {
     border-bottom: 1px solid var(--surface-secondary);
     padding-bottom: 12px;
 }
-.word-details-header h2 {
-    background: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-size: 24px;
-    font-weight: 700;
-}
+
 .close-overlay-btn {
     background: var(--surface-secondary);
     border: none;
@@ -434,54 +422,20 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-.detail-box p, .detail-box ul, .detail-box .tag {
+.detail-box p {
     color: var(--text-secondary);
     font-size: 16px;
     line-height: 1.6;
-}
-#detailMeaning { border-color: var(--detail-box-1); }
-#detailContextualMeaning { border-color: var(--detail-box-2); }
-#detailSynonyms { border-color: var(--detail-box-3); }
-#detailAntonyms { border-color: var(--detail-box-4); }
-#detailExamples { border-color: var(--detail-box-5); }
-#detailCorrected { border-color: var(--success-color); }
-#detailExplanation { border-color: var(--accent-color-1); }
-
-
-.tag-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.tag {
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 14px;
-}
-#detailExamples ul {
-    list-style-type: none;
-    padding-left: 0;
-}
-#detailExamples li {
-    margin-bottom: 8px;
-    padding-left: 18px;
-    position: relative;
-}
-#detailExamples li::before {
-    content: '›';
-    position: absolute;
-    left: 0;
-    color: var(--detail-box-5);
-    font-weight: bold;
-    font-size: 20px;
-    top: -4px;
 }
 .overlay-loader {
     text-align: center;
     padding: 40px 0;
     color: var(--text-tertiary);
 }
+
+/* Grammar Overlay Specifics */
+#detailCorrected { border-color: var(--success-color); }
+#detailExplanation { border-color: var(--accent-color-1); }
 
 .corrected-text {
     font-style: italic;
@@ -503,4 +457,33 @@ body {
 
 .grammar-overlay-header svg {
     flex-shrink: 0;
+}
+
+/* Message Explainer Overlay Specifics */
+.message-explainer-header h2 {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.sentence-explanation-box {
+    background-color: var(--surface-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--accent-color-2);
+}
+.sentence-explanation-box blockquote {
+    color: var(--text-primary);
+    font-style: italic;
+    margin-bottom: 8px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent-color-1);
+}
+.sentence-explanation-box p {
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.5;
 }
