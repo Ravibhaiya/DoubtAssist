@@ -30,7 +30,11 @@ function SuccessFeedback() {
     return <div className="message-sent-feedback">Message Sent</div>;
 }
 
-export default function TwilightMessengerPage() {
+export default function TwilightMessengerPage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
