@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow to continue a conversation like a human.
@@ -85,24 +84,11 @@ const continueConversationFlow = ai.defineFlow(
     outputSchema: ContinueConversationOutputSchema,
   },
   async (input) => {
-    try {
-      const {output} = await continueConversationPrompt(input);
-      
-      if (!output?.aiReply) {
-        throw new Error("No valid reply received from AI model");
-      }
-
-      return { aiReply: output.aiReply };
-      
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error(`Input validation failed: ${error.message}`);
-      }
-      
-      console.error('Unexpected error in continueConversationFlow:', error);
-      
-      throw new Error("I'm having a little trouble thinking of a reply right now.");
+    const {output} = await continueConversationPrompt(input);
+    if (!output) {
+      return { aiReply: "I'm not sure what to say to that." };
     }
+    return { aiReply: output.aiReply };
   }
 );
 

@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({ subsets: ['latin'] });
+
 export const metadata: Metadata = {
-  title: 'Twilight Messenger - John',
-  description: 'A chat interface.',
+  title: 'DoubtAssist',
+  description: 'An intelligent assistant to help you with your doubts.',
 };
 
 export default function RootLayout({
@@ -16,7 +19,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body>
+      <body className={inter.className}>
         {children}
       </body>
     </html>

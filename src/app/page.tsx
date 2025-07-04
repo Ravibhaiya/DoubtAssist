@@ -1,39 +1,119 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { startConversation } from '@/ai/flows/startConversationFlow';
 import { continueConversation } from '@/ai/flows/continueConversationFlow';
+import { checkGrammar } from '@/ai/flows/checkGrammarFlow';
+import { explainWord } from '@/ai/flows/explainWordFlow';
 
+// Define types for our data structures
 interface Message {
-    text: string;
-    isSent: boolean;
-    time: string;
+  id: number;
+  text: string;
+  type: 'sent' | 'received' | 'grammar';
+  time: string;
+  correctionData?: GrammarCorrection;
+  context?: string;
 }
 
+interface GrammarCorrection {
+  correctedSentence: string;
+  explanation: string;
+}
+
+interface WordDetails {
+    word: string;
+    definition: string;
+    contextualMeaning: string;
+    synonyms: string[];
+    antonyms: string[];
+    examples: string[];
+}
+
+// Helper to get current time as a string
 function getCurrentTime() {
-    const now = new Date();
-    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function SuccessFeedback() {
-    return <div className="message-sent-feedback">Message Sent</div>;
+// Word Explainer Overlay Component
+function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: string | null; details: WordDetails | null; isLoading: boolean; onClose: () => void; }) {
+    if (!word) return null;
+
+    const synonymsHTML = details?.synonyms && details.synonyms.length > 0
+        ? `<div class="tag-container">${details.synonyms.map(s => `<span class="tag">${s}</span>`).join('')}</div>`
+        : '<p>No synonyms found.</p>';
+    
+    const antonymsHTML = details?.antonyms && details.antonyms.length > 0
+        ? `<div class="tag-container">${details.antonyms.map(a => `<span class="tag">${a}</span>`).join('')}</div>`
+        : '<p>No antonyms found.</p>';
+
+    const examplesHTML = details?.examples && details.examples.length > 0
+        ? `<ul>${details.examples.map(e => `<li>${e}</li>`).join('')}</ul>`
+        : '<p>No examples found.</p>';
+
+    return (
+        <div className={`word-overlay ${word ? 'show' : ''}`} onClick={onClose}>
+            <div className="word-details-panel" onClick={(e) => e.stopPropagation()}>
+                {isLoading ? (
+                    <div className="overlay-loader">Analyzing word...</div>
+                ) : details ? (
+                    <>
+                        <div className="word-details-header">
+                            <h2>{details.word}</h2>
+                            <button className="close-overlay-btn" onClick={onClose}>&times;</button>
+                        </div>
+                        <div id="detailMeaning" className="detail-box">
+                            <h4>Definition</h4>
+                            <p dangerouslySetInnerHTML={{ __html: details.definition }}></p>
+                        </div>
+                        <div id="detailContextualMeaning" className="detail-box">
+                            <h4>Meaning in Context</h4>
+                            <p dangerouslySetInnerHTML={{ __html: details.contextualMeaning }}></p>
+                        </div>
+                        <div id="detailSynonyms" className="detail-box">
+                            <h4>Synonyms</h4>
+                            <div dangerouslySetInnerHTML={{ __html: synonymsHTML }}></div>
+                        </div>
+                        <div id="detailAntonyms" className="detail-box">
+                            <h4>Antonyms</h4>
+                            <div dangerouslySetInnerHTML={{ __html: antonymsHTML }}></div>
+                        </div>
+                        <div id="detailExamples" className="detail-box">
+                            <h4>Example Sentences</h4>
+                            <div dangerouslySetInnerHTML={{ __html: examplesHTML }}></div>
+                        </div>
+                    </>
+                ) : (
+                     <>
+                        <div className="word-details-header">
+                            <h2>Error</h2>
+                            <button className="close-overlay-btn" onClick={onClose}>&times;</button>
+                        </div>
+                        <div className="detail-box">
+                          <p>Sorry, I couldn't fetch the details for "{word}". Please try another word.</p>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
 }
 
-interface PageProps {
-    params: any;
-    searchParams: any;
-}
 
-export default function TwilightMessengerPage({ params, searchParams }: PageProps) {
+export default function DoubtAssistPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [isSending, setIsSending] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
     
-    const chatContainerRef = useRef<HTMLDivElement>(null);
-    const messageInputRef = useRef<HTMLInputElement>(null);
+    // State for Word Explainer
+    const [selectedWord, setSelectedWord] = useState<string | null>(null);
+    const [selectedWordContext, setSelectedWordContext] = useState<string | null>(null);
+    const [wordDetails, setWordDetails] = useState<WordDetails | null>(null);
+    const [isOverlayLoading, setIsOverlayLoading] = useState(false);
 
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Effect to scroll to bottom when messages change
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTo({
@@ -43,153 +123,199 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
         }
     }, [messages, isTyping]);
 
+    // Effect for the initial message
     useEffect(() => {
-        const fetchOpeningMessage = async () => {
-            setIsTyping(true);
-            try {
-                const response = await startConversation({});
-                if (response.openingMessage) {
-                    addMessage(response.openingMessage, false);
-                }
-            } catch (error) {
-                console.error("Error starting conversation:", error);
-                addMessage("I'm having some trouble starting up. Please try again later.", false);
-            } finally {
-                setIsTyping(false);
-                messageInputRef.current?.focus();
-            }
-        };
-
-        if (messages.length === 0) {
-            fetchOpeningMessage();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        setMessages([{
+            id: 0,
+            text: "Hello! I'm John. Feel free to chat with me. If I notice a grammar mistake in your message, I'll offer a helpful tip. You can also click on any word I say to get more details about it.",
+            type: 'received',
+            time: getCurrentTime(),
+            context: "Hello! I'm John. Feel free to chat with me. If I notice a grammar mistake in your message, I'll offer a helpful tip. You can also click on any word I say to get more details about it."
+        }]);
+        inputRef.current?.focus();
     }, []);
 
+    // Effect to fetch word details when a word is selected
     useEffect(() => {
-        if (showSuccess) {
-            const timer = setTimeout(() => {
-                setShowSuccess(false);
-            }, 1200);
-            return () => clearTimeout(timer);
+        if (selectedWord && selectedWordContext) {
+            const fetchDetails = async () => {
+                setIsOverlayLoading(true);
+                setWordDetails(null);
+                try {
+                    const details = await explainWord({ word: selectedWord, context: selectedWordContext });
+                    setWordDetails(details);
+                } catch (error) {
+                    console.error("Failed to fetch word details:", error);
+                    setWordDetails(null);
+                } finally {
+                    setIsOverlayLoading(false);
+                }
+            };
+            fetchDetails();
         }
-    }, [showSuccess]);
+    }, [selectedWord, selectedWordContext]);
 
-    const addMessage = (text: string, isSent: boolean) => {
-        setMessages(prev => [...prev, { text, isSent, time: getCurrentTime() }]);
+    // Adds a new message to the state
+    const addMessage = (text: string, type: Message['type'], correctionData?: GrammarCorrection, context?: string) => {
+        setMessages(prev => [...prev, {
+            id: prev.length,
+            text,
+            type,
+            time: getCurrentTime(),
+            correctionData,
+            context
+        }]);
     };
 
-    const getAIResponse = async (userMessage: string) => {
+    const handleSendMessage = async () => {
+        const text = inputValue.trim();
+        if (!text || isTyping) return;
+
+        addMessage(text, 'sent');
+        setInputValue('');
         setIsTyping(true);
-        
-        const historyForFlow = messages.map(msg => ({
-            role: msg.isSent ? 'user' : 'model' as 'user' | 'model',
-            text: msg.text,
-        }));
 
         try {
-            const response = await continueConversation({ 
-                userMessage: userMessage,
-                history: historyForFlow,
-            });
-            if(response.aiReply) {
-                addMessage(response.aiReply, false);
-            } else {
-                addMessage("I'm not sure what to say to that.", false);
+            // Check grammar in parallel
+            const grammarPromise = checkGrammar({ userText: text });
+            
+            // Get conversational response
+            const historyForFlow = messages
+              .filter(msg => msg.type === 'sent' || msg.type === 'received')
+              .map(msg => ({
+                role: msg.type === 'sent' ? 'user' : 'model' as 'user' | 'model',
+                text: msg.text,
+              }));
+
+            const conversationPromise = continueConversation({ userMessage: text, history: historyForFlow });
+
+            // Await both promises
+            const [grammarResult, conversationResult] = await Promise.all([grammarPromise, conversationPromise]);
+
+            // Handle conversation result
+            if (conversationResult && conversationResult.aiReply) {
+                addMessage(conversationResult.aiReply, 'received', undefined, conversationResult.aiReply);
             }
+
+            // Handle grammar result - display after the reply
+            if (grammarResult && grammarResult.hasErrors) {
+                addMessage('', 'grammar', grammarResult);
+            }
+
         } catch (error) {
-            console.error("Error getting AI response:", error);
-            addMessage("Sorry, I'm having a little trouble right now. Please try again later.", false);
+            console.error("Error during AI processing:", error);
+            addMessage("Sorry, I'm having a little trouble connecting. Please try again later.", 'received');
         } finally {
             setIsTyping(false);
-            messageInputRef.current?.focus();
+            inputRef.current?.focus();
+        }
+    };
+    
+    const handleWordClick = (word: string, context: string) => {
+        const cleanWord = word.replace(/[.,!?;"“'”]/g, '').trim();
+        if (cleanWord && cleanWord.match(/[a-zA-Z]/)) {
+            setSelectedWord(cleanWord);
+            setSelectedWordContext(context);
         }
     };
 
-    const sendMessage = () => {
-        const text = inputValue.trim();
-        if (text && !isSending && !isTyping) {
-            setIsSending(true);
-            setShowSuccess(true);
-            
-            addMessage(text, true);
-            setInputValue('');
-            
-            setTimeout(() => {
-                setIsSending(false);
-                getAIResponse(text);
-            }, 200);
+    const renderMessageContent = (msg: Message) => {
+        if (msg.type === 'received' && msg.context) {
+            return msg.text.split(/(\s+)/).map((part, index) => {
+                 if (part.trim().length > 0) {
+                    return <span key={index} className="ai-word" onClick={() => handleWordClick(part, msg.context!)}>{part}</span>;
+                 }
+                 return part;
+            });
         }
+        return msg.text;
     };
-
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
-
+    
     return (
-        <>
-            {showSuccess && <SuccessFeedback />}
-            <div className="phone-container">
-                <div className="screen">
-                    <div className="status-bar"></div>
-                    <div className="header">
-                        <div className="profile-info">
-                            <div className="avatar">J</div>
-                            <div className="contact-info">
-                                <h3>John</h3>
-                                <div className="online-status">
-                                    <div className="online-dot"></div>
-                                    Online
-                                </div>
+      <>
+        <div className="phone-container">
+            <div className="screen">
+                <div className="header">
+                    <div className="profile-info">
+                        <div className="avatar">D</div>
+                        <div className="contact-info">
+                            <h3>DoubtAssist</h3>
+                            <div className="online-status">
+                                <div className="online-dot"></div>
+                                Online
                             </div>
                         </div>
-                    </div>
-
-                    <div className="chat-container" ref={chatContainerRef}>
-                        {messages.map((msg, index) => (
-                            <div key={index} className={`message ${msg.isSent ? 'sent' : 'received'}`}>
-                                <div className="message-bubble">
-                                    {msg.text}
-                                    <div className="message-time">{msg.time}</div>
-                                </div>
-                            </div>
-                        ))}
-                        
-                        {isTyping && (
-                            <div className="typing-indicator show">
-                                <div className="typing-dots">
-                                    <span className="dot"></span>
-                                    <span className="dot"></span>
-                                    <span className="dot"></span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="input-area">
-                        <div className="input-container">
-                            <input
-                                type="text"
-                                className="message-input"
-                                ref={messageInputRef}
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Type a message..."
-                                disabled={isTyping || isTyping}
-                            />
-                        </div>
-                        <button className={`send-btn ${isSending ? 'sending' : ''}`} onClick={sendMessage} disabled={isSending || isTyping}>
-                            <svg className="send-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
-                            </svg>
-                        </button>
                     </div>
                 </div>
+
+                <div className="chat-container" ref={chatContainerRef}>
+                    {messages.map(msg => (
+                        <div key={msg.id} className={`message ${msg.type}`}>
+                            {msg.type === 'grammar' && msg.correctionData ? (
+                                <div className="message-bubble">
+                                    <div className="correction-header">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill="currentColor"/>
+                                        </svg>
+                                        <span>Grammar Tip</span>
+                                    </div>
+                                    <div className="correction-section">
+                                        <h5>Corrected Sentence</h5>
+                                        <p className="corrected-text">{msg.correctionData.correctedSentence}</p>
+                                    </div>
+                                    <div className="correction-section">
+                                        <h5>Explanation</h5>
+                                        <p>{msg.correctionData.explanation}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="message-bubble" data-context={msg.context}>
+                                    <div className="message-text">
+                                      {renderMessageContent(msg)}
+                                    </div>
+                                    <div className="message-time">{msg.time}</div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {isTyping && (
+                        <div className="typing-indicator show">
+                            <div className="typing-dots">
+                                <span className="dot"></span>
+                                <span className="dot"></span>
+                                <span className="dot"></span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="input-area">
+                    <div className="input-container">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            className="message-input"
+                            placeholder="Type a message..."
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            disabled={isTyping}
+                        />
+                    </div>
+                    <button className="send-btn" onClick={handleSendMessage} disabled={isTyping || !inputValue}>
+                        <svg className="send-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </>
+        </div>
+        <WordExplainerOverlay
+            word={selectedWord}
+            details={wordDetails}
+            isLoading={isOverlayLoading}
+            onClose={() => setSelectedWord(null)}
+        />
+      </>
     );
 }
