@@ -1,24 +1,13 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { startConversation } from '@/ai/flows/startConversationFlow';
 import { continueConversation } from '@/ai/flows/continueConversationFlow';
-import { explainText, type ExplainTextOutput } from '@/ai/flows/explainTextFlow';
-import { TextExplainerOverlay } from '@/components/feature/text-explainer-overlay';
 
 interface Message {
     text: string;
     isSent: boolean;
     time: string;
-}
-
-interface ExplainerState {
-  isOpen: boolean;
-  word: string | null;
-  sentence: string | null;
-  data: ExplainTextOutput | null;
-  isLoading: boolean;
 }
 
 function getCurrentTime() {
@@ -30,7 +19,6 @@ function SuccessFeedback() {
     return <div className="message-sent-feedback">Message Sent</div>;
 }
 
-// Define the props interface for the page component to satisfy Next.js
 interface PageProps {
     params: any;
     searchParams: any;
@@ -42,13 +30,6 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
     const [isTyping, setIsTyping] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [explainerState, setExplainerState] = useState<ExplainerState>({
-      isOpen: false,
-      word: null,
-      sentence: null,
-      data: null,
-      isLoading: false,
-    });
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
@@ -93,25 +74,6 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
             return () => clearTimeout(timer);
         }
     }, [showSuccess]);
-
-    useEffect(() => {
-        if (explainerState.isOpen && explainerState.word && explainerState.sentence && explainerState.isLoading) {
-            const getExplanation = async () => {
-                try {
-                    const result = await explainText({
-                        textToExplain: explainerState.word!,
-                        contextSentence: explainerState.sentence!,
-                    });
-                    setExplainerState(prev => ({ ...prev, data: result, isLoading: false }));
-                } catch (error) {
-                    console.error("Error explaining text:", error);
-                    setExplainerState(prev => ({ ...prev, isLoading: false }));
-                }
-            };
-            getExplanation();
-        }
-    }, [explainerState.isOpen, explainerState.word, explainerState.sentence, explainerState.isLoading]);
-
 
     const addMessage = (text: string, isSent: boolean) => {
         setMessages(prev => [...prev, { text, isSent, time: getCurrentTime() }]);
@@ -167,42 +129,6 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
         }
     };
 
-    const handleWordClick = (word: string, sentence: string) => {
-        if (!word || !/[a-zA-Z]/.test(word)) return;
-    
-        const cleanedWordForAI = word.replace(/[.,!?"“”;:]/g, '').trim();
-    
-        if (!cleanedWordForAI) return;
-    
-        setExplainerState({
-            isOpen: true,
-            word: cleanedWordForAI,
-            sentence: sentence,
-            data: null,
-            isLoading: true,
-        });
-    };
-
-    const renderInteractiveText = (text: string, sentence: string) => {
-        const parts = text.split(/([^a-zA-Z']+)/);
-    
-        return parts.filter(part => part && part.length > 0).map((part, index) => {
-            if (/^[a-zA-Z']+$/.test(part)) {
-                return (
-                    <span
-                        key={index}
-                        className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
-                        onClick={() => handleWordClick(part, sentence)}
-                    >
-                        {part}
-                    </span>
-                );
-            } else {
-                return <React.Fragment key={index}>{part}</React.Fragment>;
-            }
-        });
-    };
-
     return (
         <>
             {showSuccess && <SuccessFeedback />}
@@ -226,10 +152,7 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
                         {messages.map((msg, index) => (
                             <div key={index} className={`message ${msg.isSent ? 'sent' : 'received'}`}>
                                 <div className="message-bubble">
-                                    {msg.isSent 
-                                    ? msg.text 
-                                    : renderInteractiveText(msg.text, msg.text)
-                                    }
+                                    {msg.text}
                                     <div className="message-time">{msg.time}</div>
                                 </div>
                             </div>
@@ -256,7 +179,7 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyPress={handleKeyPress}
                                 placeholder="Type a message..."
-                                disabled={isTyping || isSending}
+                                disabled={isTyping || isTyping}
                             />
                         </div>
                         <button className={`send-btn ${isSending ? 'sending' : ''}`} onClick={sendMessage} disabled={isSending || isTyping}>
@@ -267,14 +190,6 @@ export default function TwilightMessengerPage({ params, searchParams }: PageProp
                     </div>
                 </div>
             </div>
-            <TextExplainerOverlay
-                isOpen={explainerState.isOpen}
-                onClose={() => setExplainerState(prev => ({ ...prev, isOpen: false, word: null, sentence: null, data: null }))}
-                word={explainerState.word}
-                sentence={explainerState.sentence}
-                isLoading={explainerState.isLoading}
-                explanationData={explainerState.data}
-            />
         </>
     );
 }
