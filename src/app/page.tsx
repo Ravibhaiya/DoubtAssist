@@ -311,7 +311,10 @@ export default function JohnPage() {
         <MessageExplainerOverlay
             explainerData={explainerData}
             isLoading={isExplainerLoading}
-            onClose={() => setSelectedMessageForExplainer(null)}
+            onClose={() => {
+                setSelectedMessageForExplainer(null);
+                setExplainerData(null);
+            }}
         />
         <GrammarCorrectionOverlay 
             correction={selectedCorrection}
