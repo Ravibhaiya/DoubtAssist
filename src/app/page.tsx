@@ -99,7 +99,7 @@ export default function TwilightMessengerPage() {
                     setExplainerState(prev => ({ ...prev, data: result, isLoading: false }));
                 } catch (error) {
                     console.error("Error explaining text:", error);
-                    setExplainerState(prev => ({ ...prev, isLoading: false })); // Consider showing an error toast
+                    setExplainerState(prev => ({ ...prev, isLoading: false }));
                 }
             };
             getExplanation();
@@ -162,10 +162,8 @@ export default function TwilightMessengerPage() {
     };
 
     const handleWordClick = (word: string, sentence: string) => {
-        // Only trigger for actual words that contain letters.
         if (!word || !/[a-zA-Z]/.test(word)) return;
     
-        // Clean the word for the AI flow.
         const cleanedWordForAI = word.replace(/[.,!?"“”;:]/g, '').trim();
     
         if (!cleanedWordForAI) return;
@@ -180,12 +178,9 @@ export default function TwilightMessengerPage() {
     };
 
     const renderInteractiveText = (text: string, sentence: string) => {
-        // This regex splits the string by any sequence of characters that are NOT letters or apostrophes.
-        // The capturing group ( ... ) ensures the delimiters (like spaces, punctuation) are also included in the resulting array.
         const parts = text.split(/([^a-zA-Z']+)/);
     
         return parts.filter(part => part && part.length > 0).map((part, index) => {
-            // Check if the part is a "word" (contains only letters and apostrophes).
             if (/^[a-zA-Z']+$/.test(part)) {
                 return (
                     <span
@@ -197,7 +192,6 @@ export default function TwilightMessengerPage() {
                     </span>
                 );
             } else {
-                // This part is punctuation, whitespace, or other symbols, so it's not clickable.
                 return <React.Fragment key={index}>{part}</React.Fragment>;
             }
         });
