@@ -41,7 +41,6 @@
         padding: 0;
         box-shadow: none;
         position: relative;
-        overflow: hidden;
     }
 
     .screen {
@@ -49,7 +48,6 @@
         height: 100%;
         background: var(--bg-deep-space);
         border-radius: 0;
-        overflow: hidden;
         display: flex;
         flex-direction: column;
     }
@@ -210,8 +208,6 @@
         position: relative;
         word-wrap: break-word;
         box-shadow: 0 5px 20px rgba(0,0,0,0.25);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         transition: all 0.3s ease;
     }
@@ -271,8 +267,6 @@
         border-radius: 24px;
         border-bottom-left-radius: 8px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;

@@ -226,12 +226,10 @@ export default function TwilightMessengerPage() {
                         {messages.map((msg, index) => (
                             <div key={index} className={`message ${msg.isSent ? 'sent' : 'received'}`}>
                                 <div className="message-bubble">
-                                    <p style={{ margin: 0, padding: 0 }}>
-                                      {msg.isSent 
-                                        ? msg.text 
-                                        : renderInteractiveText(msg.text, msg.text)
-                                      }
-                                    </p>
+                                    {msg.isSent 
+                                    ? msg.text 
+                                    : renderInteractiveText(msg.text, msg.text)
+                                    }
                                     <div className="message-time">{msg.time}</div>
                                 </div>
                             </div>
