@@ -163,7 +163,8 @@ export default function TwilightMessengerPage() {
 
     const handleWordClick = (word: string, sentence: string) => {
         const cleanedWord = word.replace(/[.,!?"“”;:]/g, '').trim().toLowerCase();
-        if (!cleanedWord || !/^[a-z']+$/.test(cleanedWord)) return; // Only trigger for actual words
+        // Only trigger for actual words (letters and apostrophes allowed)
+        if (!cleanedWord || !/^[a-z']+$/.test(cleanedWord)) return; 
     
         setExplainerState({
             isOpen: true,
@@ -200,15 +201,17 @@ export default function TwilightMessengerPage() {
                                     <p style={{ margin: 0, padding: 0 }}>
                                       {msg.isSent 
                                         ? msg.text 
-                                        : msg.text.split(/(\s+|[.,!?"“”;:](?=\s|$))/).filter(part => part).map((part, i) => (
-                                            <span 
-                                                key={i} 
-                                                className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
-                                                onClick={() => handleWordClick(part, msg.text)}
-                                            >
-                                                {part}
-                                            </span>
-                                        ))
+                                        : msg.text.split(/(\s+|[.,!?"“”;:](?=\s|$))/)
+                                            .filter(part => part)
+                                            .map((part, i) => (
+                                                <span 
+                                                    key={i} 
+                                                    className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
+                                                    onClick={() => handleWordClick(part, msg.text)}
+                                                >
+                                                    {part}
+                                                </span>
+                                            ))
                                       }
                                     </p>
                                     <div className="message-time">{msg.time}</div>
