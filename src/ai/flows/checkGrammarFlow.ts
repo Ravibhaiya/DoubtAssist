@@ -38,11 +38,10 @@ const grammarCheckPrompt = ai.definePrompt({
     }
     
     Error Classification Rules:
-    - If there are no errors: "hasErrors" must be false, "errorType" must be "none", and the other fields must be empty strings.
-    - If the user input is trivial (e.g., "hi", "ok", a single word with no obvious error), treat it as having no errors.
-    - If there are only minor mistakes (e.g., spelling, punctuation, capitalization): "hasErrors" must be true, and "errorType" must be "minor".
-    - If there are major grammatical errors (e.g., sentence structure, verb tense, subject-verb agreement, word choice): "hasErrors" must be true, and "errorType" must be "major".
-    - **Tense-Specific Feedback**: If you find a verb tense mistake, your explanation must clearly state that it's a tense error and explain how to fix it. For example: "The verb 'goes' is in the wrong tense. It should be 'went' to match the past-tense context of the sentence."
+    - If there are no errors, or if the input is trivial (e.g., "hi", "ok"), set "hasErrors" to false and "errorType" to "none".
+    - **Minor Errors (for 'minor' errorType)**: Use this for mistakes related to typing, spelling, punctuation, or capitalization. For example, a typo like "hte" instead of "the", a missing comma, or a lowercase "i" for the pronoun "I". These are not fundamental grammar errors.
+    - **Major Errors (for 'major' errorType)**: Use this for all fundamental grammatical and tense-related mistakes. This includes incorrect sentence structure, verb tense issues, subject-verb agreement problems, and poor word choice. Any error that affects the core meaning or grammatical correctness of the sentence is a major error.
+    - **Tense-Specific Feedback**: If you find a verb tense mistake (which is a 'major' error), your explanation must clearly state that it's a tense error and explain how to fix it. For example: "The verb 'goes' is in the wrong tense. It should be 'went' to match the past-tense context of the sentence."
     - If the input is not in English, set hasErrors to false and errorType to "none".`,
 });
 
