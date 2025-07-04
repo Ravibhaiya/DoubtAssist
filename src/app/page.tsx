@@ -9,7 +9,7 @@ import { explainWord } from '@/ai/flows/explainWordFlow';
 interface Message {
   id: number;
   text: string;
-  type: 'sent' | 'received' | 'grammar';
+  type: 'sent' | 'received';
   time: string;
   correctionData?: GrammarCorrection;
   context?: string;
@@ -98,6 +98,35 @@ function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: str
     );
 }
 
+// Grammar Correction Overlay Component
+function GrammarCorrectionOverlay({ correction, onClose }: { correction: GrammarCorrection | null; onClose: () => void; }) {
+    if (!correction) return null;
+
+    return (
+        <div className="word-overlay show" onClick={onClose}>
+            <div className="word-details-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="word-details-header">
+                    <h2 className="grammar-overlay-header">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                           <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill="currentColor"/>
+                        </svg>
+                        <span>Grammar Tip</span>
+                    </h2>
+                    <button className="close-overlay-btn" onClick={onClose}>&times;</button>
+                </div>
+                <div id="detailCorrected" className="detail-box">
+                    <h4>Corrected Sentence</h4>
+                    <p className="corrected-text">{correction.correctedSentence}</p>
+                </div>
+                <div id="detailExplanation" className="detail-box">
+                    <h4>Explanation</h4>
+                    <p>{correction.explanation}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 export default function DoubtAssistPage() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -109,6 +138,9 @@ export default function DoubtAssistPage() {
     const [selectedWordContext, setSelectedWordContext] = useState<string | null>(null);
     const [wordDetails, setWordDetails] = useState<WordDetails | null>(null);
     const [isOverlayLoading, setIsOverlayLoading] = useState(false);
+
+    // State for Grammar Correction
+    const [selectedCorrection, setSelectedCorrection] = useState<GrammarCorrection | null>(null);
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -155,23 +187,25 @@ export default function DoubtAssistPage() {
         }
     }, [selectedWord, selectedWordContext]);
 
-    // Adds a new message to the state
-    const addMessage = (text: string, type: Message['type'], correctionData?: GrammarCorrection, context?: string) => {
-        setMessages(prev => [...prev, {
-            id: prev.length,
+    // Adds a new message to the state and returns its ID
+    const addMessage = (text: string, type: 'sent' | 'received', context?: string): number => {
+        const newMessageId = Date.now();
+        const newMessage: Message = {
+            id: newMessageId,
             text,
             type,
             time: getCurrentTime(),
-            correctionData,
-            context
-        }]);
+            context,
+        };
+        setMessages(prev => [...prev, newMessage]);
+        return newMessageId;
     };
 
     const handleSendMessage = async () => {
         const text = inputValue.trim();
         if (!text || isTyping) return;
 
-        addMessage(text, 'sent');
+        const sentMessageId = addMessage(text, 'sent');
         setInputValue('');
         setIsTyping(true);
 
@@ -194,12 +228,18 @@ export default function DoubtAssistPage() {
 
             // Handle conversation result
             if (conversationResult && conversationResult.aiReply) {
-                addMessage(conversationResult.aiReply, 'received', undefined, conversationResult.aiReply);
+                addMessage(conversationResult.aiReply, 'received', conversationResult.aiReply);
             }
 
-            // Handle grammar result - display after the reply
+            // Handle grammar result - update the sent message
             if (grammarResult && grammarResult.hasErrors) {
-                addMessage('', 'grammar', grammarResult);
+                setMessages(prev =>
+                    prev.map(msg =>
+                        msg.id === sentMessageId
+                            ? { ...msg, correctionData: grammarResult }
+                            : msg
+                    )
+                );
             }
 
         } catch (error) {
@@ -251,31 +291,21 @@ export default function DoubtAssistPage() {
                 <div className="chat-container" ref={chatContainerRef}>
                     {messages.map(msg => (
                         <div key={msg.id} className={`message ${msg.type}`}>
-                            {msg.type === 'grammar' && msg.correctionData ? (
-                                <div className="message-bubble">
-                                    <div className="correction-header">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill="currentColor"/>
-                                        </svg>
-                                        <span>Grammar Tip</span>
-                                    </div>
-                                    <div className="correction-section">
-                                        <h5>Corrected Sentence</h5>
-                                        <p className="corrected-text">{msg.correctionData.correctedSentence}</p>
-                                    </div>
-                                    <div className="correction-section">
-                                        <h5>Explanation</h5>
-                                        <p>{msg.correctionData.explanation}</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="message-bubble" data-context={msg.context}>
+                            <div className="message-bubble" data-context={msg.context}>
+                                <div className="message-text-wrapper">
                                     <div className="message-text">
                                       {renderMessageContent(msg)}
                                     </div>
                                     <div className="message-time">{msg.time}</div>
                                 </div>
-                            )}
+                                {msg.type === 'sent' && msg.correctionData && (
+                                    <button className="grammar-icon-btn" onClick={() => setSelectedCorrection(msg.correctionData!)}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M20 6L9 17l-5-5"/>
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     ))}
                     {isTyping && (
@@ -315,6 +345,10 @@ export default function DoubtAssistPage() {
             details={wordDetails}
             isLoading={isOverlayLoading}
             onClose={() => setSelectedWord(null)}
+        />
+        <GrammarCorrectionOverlay 
+            correction={selectedCorrection}
+            onClose={() => setSelectedCorrection(null)}
         />
       </>
     );

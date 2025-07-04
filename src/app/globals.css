@@ -151,7 +151,6 @@ body {
 .message.sent { justify-content: flex-end; }
 .message.sent .message-bubble { animation: sentMessageSlide 0.5s cubic-bezier(0.1, 0.9, 0.3, 1) forwards; }
 .message.received .message-bubble { animation: receivedMessageSlide 0.5s cubic-bezier(0.1, 0.9, 0.3, 1) forwards; }
-.message.grammar .message-bubble { animation: receivedMessageSlide 0.5s cubic-bezier(0.1, 0.9, 0.3, 1) forwards; }
 
 @keyframes sentMessageSlide {
     from { transform: translateX(50px) scale(0.9); opacity: 0; }
@@ -184,6 +183,19 @@ body {
     background: var(--accent-gradient);
     color: white;
     border-bottom-right-radius: 8px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.message-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.message.received .message-text-wrapper {
+    align-items: flex-start;
 }
 
 .message-time {
@@ -191,6 +203,7 @@ body {
     opacity: 0.6;
     margin-top: 8px;
     text-align: right;
+    white-space: nowrap;
 }
 .message.received .message-time { text-align: left; }
 
@@ -244,57 +257,28 @@ body {
     30% { transform: translateY(-10px); }
 }
 
-/* Grammar Correction Message Style */
-.message.grammar {
-    justify-content: flex-start;
-    width: 100%;
-    margin-top: -5px; 
-}
-
-.grammar .message-bubble {
-    background: rgba(34, 197, 94, 0.1); 
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-left: 4px solid var(--success-color);
-    color: var(--text-secondary);
-    max-width: 80%;
-    border-radius: 12px;
-    backdrop-filter: blur(5px);
-   -webkit-backdrop-filter: blur(5px);
-}
-
-.correction-header {
+/* Grammar Icon Button Style */
+.grammar-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--success-color);
+    border: 2px solid var(--surface-primary);
+    color: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--success-color);
-    margin-bottom: 10px;
-}
-.correction-header svg { flex-shrink: 0; }
-
-.correction-section { margin-bottom: 12px; }
-.correction-section:last-child { margin-bottom: 0; }
-
-.correction-section h5 {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-tertiary);
-    margin-bottom: 4px;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-.correction-section p {
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--text-primary);
+.grammar-icon-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
 }
 
-.correction-section .corrected-text {
-    font-style: italic;
-    font-weight: 500;
-    color: var(--text-primary);
-}
 /* --- End Grammar Styles --- */
 
 
@@ -438,7 +422,7 @@ body {
 }
 .detail-box h4 {
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     margin-bottom: 8px;
     text-transform: uppercase;
@@ -454,6 +438,9 @@ body {
 #detailSynonyms { border-color: var(--detail-box-3); }
 #detailAntonyms { border-color: var(--detail-box-4); }
 #detailExamples { border-color: var(--detail-box-5); }
+#detailCorrected { border-color: var(--success-color); }
+#detailExplanation { border-color: var(--accent-color-1); }
+
 
 .tag-container {
     display: flex;
@@ -488,4 +475,22 @@ body {
     text-align: center;
     padding: 40px 0;
     color: var(--text-tertiary);
+}
+
+.corrected-text {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.grammar-overlay-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--success-color);
+}
+.grammar-overlay-header svg {
+    flex-shrink: 0;
 }
