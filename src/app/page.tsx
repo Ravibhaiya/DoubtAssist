@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { continueConversation } from '@/ai/flows/continueConversationFlow';
-import { checkGrammar, type CheckGrammarOutput } from '@/ai/flows/checkGrammarFlow';
+import { continueConversation, type CheckGrammarOutput } from '@/ai/flows/continueConversationFlow';
 import { explainMessage, type ExplainMessageOutput } from '@/ai/flows/explainMessageFlow';
-import { CheckCircle2, AlertTriangle, XCircle, MessageSquareQuote } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 // Define types for our data structures
 interface Message {
@@ -183,33 +182,27 @@ export default function JohnPage() {
         setIsTyping(true);
 
         try {
-            // Check grammar in parallel
-            const grammarPromise = checkGrammar({ userText: text });
-            
-            // Get conversational response
+            // Get conversational response and grammar check in a single call
             const historyForFlow = messages
               .filter(msg => msg.type === 'sent' || msg.type === 'received')
               .map(msg => ({
                 role: msg.type === 'sent' ? 'user' : 'model' as 'user' | 'model',
                 text: msg.text,
               }));
-
-            const conversationPromise = continueConversation({ userMessage: text, history: historyForFlow });
-
-            // Await both promises
-            const [grammarResult, conversationResult] = await Promise.all([grammarPromise, conversationPromise]);
+            
+            const result = await continueConversation({ userMessage: text, history: historyForFlow });
 
             // Handle conversation result
-            if (conversationResult && conversationResult.aiReply) {
-                addMessage(conversationResult.aiReply, 'received');
+            if (result && result.aiReply) {
+                addMessage(result.aiReply, 'received');
             }
 
             // Handle grammar result - update the sent message
-            if (grammarResult) {
+            if (result && result.grammarCheck) {
                 setMessages(prev =>
                     prev.map(msg =>
                         msg.id === sentMessageId
-                            ? { ...msg, correctionData: grammarResult }
+                            ? { ...msg, correctionData: result.grammarCheck }
                             : msg
                     )
                 );

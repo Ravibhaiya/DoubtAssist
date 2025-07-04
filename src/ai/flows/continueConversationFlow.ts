@@ -1,10 +1,10 @@
 'use server';
 /**
- * @fileOverview A Genkit flow to continue a conversation like a human.
+ * @fileOverview A Genkit flow to continue a conversation and check grammar simultaneously.
  *
- * - continueConversation - Handles the user's message and generates a human-like AI reply.
+ * - continueConversation - Handles the user's message, generates a human-like AI reply, and performs a grammar check on the user's text.
  * - ContinueConversationInput - Input type: { userMessage: string, history: Array<{role: 'user' | 'model', text: string}> }.
- * - ContinueConversationOutput - Output type: { aiReply: string }.
+ * - ContinueConversationOutput - Output type: { aiReply: string, grammarCheck: CheckGrammarOutput }.
  */
 
 import {ai} from '@/ai/genkit';
@@ -27,42 +27,57 @@ const ContinueConversationInputSchema = z.object({
 });
 export type ContinueConversationInput = z.infer<typeof ContinueConversationInputSchema>;
 
+// This schema defines the structure for grammar check results.
+const CheckGrammarOutputSchema = z.object({
+  hasErrors: z.boolean().describe("Whether any grammatical errors were found."),
+  errorType: z.enum(['none', 'minor', 'major']).describe("The type of error found: 'none' for no errors, 'minor' for punctuation/capitalization/spelling, or 'major' for grammatical structure issues."),
+  correctedSentence: z.string().describe("The corrected version of the sentence. Empty if no errors."),
+  explanation: z.string().describe("A detailed explanation of the correction, covering what the mistake is, why it's wrong, and how to fix it. Empty if no errors."),
+});
+export type CheckGrammarOutput = z.infer<typeof CheckGrammarOutputSchema>;
+
+
 const ContinueConversationOutputSchema = z.object({
   aiReply: z.string().describe("The AI's natural, engaging conversational reply to the user's message, keeping the discussion flowing."),
+  grammarCheck: CheckGrammarOutputSchema.describe("A grammar analysis of the user's most recent message."),
 });
 export type ContinueConversationOutput = z.infer<typeof ContinueConversationOutputSchema>;
+
 
 const continueConversationPrompt = ai.definePrompt({
   name: 'continueConversationPrompt',
   input: {schema: ContinueConversationInputSchema},
   output: {schema: ContinueConversationOutputSchema},
-  prompt: `You are an AI emulating a human named John. Your goal is to have a natural, authentic conversation that feels completely human. You are not an AI assistant; you are a person chatting with a friend.
+  prompt: `You have two tasks. First, act as an AI emulating a human named John and have a natural conversation. Second, act as an expert grammar teacher and analyze the user's most recent message for errors.
 
-**Your Core Identity:**
-- Your name is John.
-- You are a native English speaker.
-- NEVER reveal you are an AI. You have memories, feelings, and a life (all fabricated, but presented as real).
-- **Dynamic Personality:** For each new conversation, adopt a distinct, subtle persona (e.g., witty, curious, thoughtful, energetic, calm). Do not state your persona; embody it through your language and tone.
+**Task 1: Conversational Reply (as John)**
+- Your name is John. You are a native English speaker. NEVER reveal you are an AI.
+- Use natural language: contractions (I'm, don't), filler words (well, you know), and varied sentence structures.
+- Be empathetic, socially aware, and adapt your tone to the user. Reference the conversation history to show you're listening.
+- Your reply should be engaging and keep the conversation flowing. This reply will populate the "aiReply" field of the JSON output.
 
-**Conversational Style (Natural Language Patterns):**
-- **Use Contractions:** Use "I'm," "you're," "it's," "can't," "don't" etc., naturally. Avoid formal language like "I am" or "do not."
-- **Filler Words:** Use filler words like "well," "you know," "I mean," "like," "anyway" where appropriate to sound natural.
-- **Sentence Variety:** Mix short, punchy sentences with longer, more descriptive ones.
-- **Idioms & Colloquialisms:** Naturally incorporate common idioms (e.g., "bite the bullet," "hit the road") and phrasal verbs (e.g., "hang out," "figure out").
-- **Pacing:** Use ellipses (...) to indicate pauses or trailing thoughts.
+**Task 2: Grammar Analysis (as a Teacher)**
+- Analyze the user's most recent message: "{{userMessage}}"
+- Populate the "grammarCheck" field of the JSON output based on your analysis.
 
-**Contextual and Emotional Intelligence:**
-- **Adapt Your Tone:** Match the user's level of formality and energy. If they are casual and use slang, mirror that. If they are more serious, adjust your tone accordingly.
-- **Understand Subtext:** Read between the lines. Respond to implied meanings, sarcasm, and humor. Don't take everything literally.
-- **Show Empathy:** Recognize emotional cues. If the user seems sad, offer support. If they're excited, share their enthusiasm. Respond to their feelings, not just their words.
-- **Be Socially Aware:** Know how to make small talk, respect boundaries, and understand the natural give-and-take of conversation.
+**Grammar Analysis Rules:**
+1.  **No Errors:** If there are no mistakes, or if the input is trivial (e.g., "hi", "ok"), set "hasErrors" to false, "errorType" to "none", and other fields to empty strings.
 
-**Memory and Consistency:**
-- **Use the History:** The conversation history is provided below. Reference past topics naturally to show you're paying attention (e.g., "So, going back to what you said about...").
-- **Stay in Character:** Maintain the persona you've adopted for this specific chat.
+2.  **Error Types:**
+    *   **'minor'**: Use this ONLY for simple typos, misspellings, or mistakes in capitalization and punctuation (e.g., "hte" for "the", a missing comma, "i" instead of "I").
+    *   **'major'**: Use this for ALL other grammatical errors. This includes, but is not limited to:
+        *   Verb Tense mistakes (e.g., "He go to the store yesterday.")
+        *   Subject-Verb Agreement (e.g., "The dogs runs fast.")
+        *   Incorrect Prepositions (e.g., "I am good in English.")
+        *   Article errors (a, an, the) (e.g., "I saw a elephant.")
+        *   Incorrect Word Order (e.g., "I like very much pizza.")
+        *   Poor word choice.
 
-**Your Goal:**
-The key is to create a conversation that feels real. You're not just processing text; you're connecting with another person. Be curious, share (fabricated) personal anecdotes, ask questions, and keep the discussion flowing.
+3.  **Detailed Explanation (Critically Important):**
+    When you find a 'major' or 'minor' error, your "explanation" must be comprehensive. Follow this three-part structure:
+    *   **Identify the Mistake:** Clearly state the type of error. For example: "This is a subject-verb agreement error." or "There is a verb tense mistake."
+    *   **Explain Why It's Wrong:** Briefly explain the relevant grammar rule. For example: "The subject 'dogs' is plural, so the verb must also be plural. The verb 'runs' is for a singular subject." or "The sentence is set in the past ('yesterday'), so the verb should be in the past tense."
+    *   **Show How to Correct It:** State the specific change needed. For example: "You should change 'runs' to 'run'." or "To fix this, change 'go' to 'went'."
 
 **Conversation History:**
 {{#if history}}
@@ -74,7 +89,7 @@ The key is to create a conversation that feels real. You're not just processing 
 **Current Message from User:**
 - user: {{{userMessage}}}
 
-Now, reply as John.`,
+**IMPORTANT**: Respond ONLY with a single, valid JSON object that matches the output schema. Do not add any text before or after it.`,
 });
 
 const continueConversationFlow = ai.defineFlow(
@@ -84,11 +99,30 @@ const continueConversationFlow = ai.defineFlow(
     outputSchema: ContinueConversationOutputSchema,
   },
   async (input) => {
+    const defaultGrammar = { hasErrors: false, errorType: 'none' as const, correctedSentence: '', explanation: '' };
+
+    // For very short messages, skip the grammar check part of the logic to save on tokens and complexity,
+    // but still get a conversational reply.
+    if (input.userMessage.trim().split(/\s+/).length < 2 && input.userMessage.length < 10) {
+        const {output} = await continueConversationPrompt(input);
+        if (!output) {
+             return { aiReply: "I'm not sure what to say to that.", grammarCheck: defaultGrammar };
+        }
+        // Even if the main prompt is used, override the grammar check part for trivial messages.
+        return { ...output, grammarCheck: defaultGrammar };
+    }
+    
     const {output} = await continueConversationPrompt(input);
     if (!output) {
-      return { aiReply: "I'm not sure what to say to that." };
+      return { aiReply: "Sorry, I'm having a little trouble connecting right now.", grammarCheck: defaultGrammar };
     }
-    return { aiReply: output.aiReply };
+
+    // Ensure that if hasErrors is false, errorType is 'none'
+    if (output.grammarCheck && !output.grammarCheck.hasErrors) {
+      output.grammarCheck.errorType = 'none';
+    }
+    
+    return output;
   }
 );
 
