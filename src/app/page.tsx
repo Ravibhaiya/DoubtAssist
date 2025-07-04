@@ -61,19 +61,17 @@ function WordExplainerOverlay({ word, details, isLoading, onClose }: { word: str
                         </div>
                         <div id="detailSynonyms" className="detail-box">
                             <h4>Synonyms</h4>
-                            <div className="tag-container">
-                                {details.synonyms.length > 0 ? details.synonyms.map(s => `<span class="tag">${s}</span>`).join('') : '<p>No synonyms found.</p>'}
+                            <div className="tag-container" dangerouslySetInnerHTML={{ __html: details.synonyms.length > 0 ? details.synonyms.map(s => `<span class="tag">${s}</span>`).join('') : '<p>No synonyms found.</p>' }}>
                             </div>
                         </div>
                         <div id="detailAntonyms" className="detail-box">
                             <h4>Antonyms</h4>
-                            <div className="tag-container">
-                                {details.antonyms.length > 0 ? details.antonyms.map(a => `<span class="tag">${a}</span>`).join('') : '<p>No antonyms found.</p>'}
+                            <div className="tag-container" dangerouslySetInnerHTML={{ __html: details.antonyms.length > 0 ? details.antonyms.map(a => `<span class="tag">${a}</span>`).join('') : '<p>No antonyms found.</p>'}}>
                             </div>
                         </div>
                         <div id="detailExamples" className="detail-box">
                             <h4>Example Sentences</h4>
-                            <ul>{details.examples.length > 0 ? details.examples.map(e => `<li>${e}</li>`).join('') : '<p>No examples found.</p>'}</ul>
+                            <ul dangerouslySetInnerHTML={{ __html: details.examples.length > 0 ? details.examples.map(e => `<li>${e}</li>`).join('') : '<p>No examples found.</p>'}}></ul>
                         </div>
                     </>
                 ) : (
@@ -148,7 +146,7 @@ function GrammarCorrectionOverlay({ correction, onClose }: { correction: Grammar
 }
 
 
-export default function DoubtAssistPage() {
+export default function JohnPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -310,9 +308,9 @@ export default function DoubtAssistPage() {
             <div className="screen">
                 <div className="header">
                     <div className="profile-info">
-                        <div className="avatar">D</div>
+                        <div className="avatar">J</div>
                         <div className="contact-info">
-                            <h3>DoubtAssist</h3>
+                            <h3>John</h3>
                             <div className="online-status">
                                 <div className="online-dot"></div>
                                 Online
