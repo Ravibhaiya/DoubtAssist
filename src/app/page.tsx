@@ -162,16 +162,44 @@ export default function TwilightMessengerPage() {
     };
 
     const handleWordClick = (word: string, sentence: string) => {
-        const cleanedWord = word.replace(/[.,!?"“”;:]/g, '').trim().toLowerCase();
-        // Only trigger for actual words (letters and apostrophes allowed)
-        if (!cleanedWord || !/^[a-z']+$/.test(cleanedWord)) return; 
+        // Only trigger for actual words that contain letters.
+        if (!word || !/[a-zA-Z]/.test(word)) return;
+    
+        // Clean the word for the AI flow.
+        const cleanedWordForAI = word.replace(/[.,!?"“”;:]/g, '').trim();
+    
+        if (!cleanedWordForAI) return;
     
         setExplainerState({
             isOpen: true,
-            word: cleanedWord,
+            word: cleanedWordForAI,
             sentence: sentence,
             data: null,
             isLoading: true,
+        });
+    };
+
+    const renderInteractiveText = (text: string, sentence: string) => {
+        // This regex splits the string by any sequence of characters that are NOT letters or apostrophes.
+        // The capturing group ( ... ) ensures the delimiters (like spaces, punctuation) are also included in the resulting array.
+        const parts = text.split(/([^a-zA-Z']+)/);
+    
+        return parts.filter(part => part && part.length > 0).map((part, index) => {
+            // Check if the part is a "word" (contains only letters and apostrophes).
+            if (/^[a-zA-Z']+$/.test(part)) {
+                return (
+                    <span
+                        key={index}
+                        className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
+                        onClick={() => handleWordClick(part, sentence)}
+                    >
+                        {part}
+                    </span>
+                );
+            } else {
+                // This part is punctuation, whitespace, or other symbols, so it's not clickable.
+                return <React.Fragment key={index}>{part}</React.Fragment>;
+            }
         });
     };
 
@@ -201,17 +229,7 @@ export default function TwilightMessengerPage() {
                                     <p style={{ margin: 0, padding: 0 }}>
                                       {msg.isSent 
                                         ? msg.text 
-                                        : msg.text.split(/(\s+|[.,!?"“”;:](?=\s|$))/)
-                                            .filter(part => part)
-                                            .map((part, i) => (
-                                                <span 
-                                                    key={i} 
-                                                    className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
-                                                    onClick={() => handleWordClick(part, msg.text)}
-                                                >
-                                                    {part}
-                                                </span>
-                                            ))
+                                        : renderInteractiveText(msg.text, msg.text)
                                       }
                                     </p>
                                     <div className="message-time">{msg.time}</div>
