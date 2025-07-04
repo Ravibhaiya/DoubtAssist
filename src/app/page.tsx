@@ -30,7 +30,13 @@ function SuccessFeedback() {
     return <div className="message-sent-feedback">Message Sent</div>;
 }
 
-export default function TwilightMessengerPage() {
+// Define the props interface for the page component to satisfy Next.js
+interface PageProps {
+    params: any;
+    searchParams: any;
+}
+
+export default function TwilightMessengerPage({ params, searchParams }: PageProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
