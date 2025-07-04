@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { continueConversation } from '@/ai/flows/continueConversationFlow';
 import { checkGrammar, type CheckGrammarOutput } from '@/ai/flows/checkGrammarFlow';
 import { explainMessage, type ExplainMessageOutput } from '@/ai/flows/explainMessageFlow';
-import { Check, AlertTriangle, XCircle, CheckCircle2, MessageSquareQuote } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, MessageSquareQuote } from 'lucide-react';
 
 // Define types for our data structures
 interface Message {
@@ -228,19 +228,6 @@ export default function JohnPage() {
         setSelectedMessageForExplainer(messageText);
     };
 
-    const renderGrammarIcon = (correction: CheckGrammarOutput) => {
-        switch (correction.errorType) {
-            case 'none':
-                return <Check width="16" height="16" strokeWidth="3" />;
-            case 'minor':
-                return <AlertTriangle width="14" height="14" strokeWidth="2.5" fill="white" stroke="var(--warning-color)" />;
-            case 'major':
-                 return <XCircle width="16" height="16" strokeWidth="2.5" />;
-            default:
-                return null;
-        }
-    };
-    
     return (
       <>
         <div className="phone-container">
@@ -261,18 +248,26 @@ export default function JohnPage() {
                 <div className="chat-container" ref={chatContainerRef}>
                     {messages.map(msg => (
                         <div key={msg.id} className={`message ${msg.type}`}>
-                            <div className="message-bubble" onClick={msg.type === 'received' ? () => handleMessageClick(msg.text) : undefined}>
+                            <div 
+                                className={`message-bubble ${
+                                    msg.type === 'sent' && msg.correctionData
+                                        ? `grammar-status-${msg.correctionData.errorType}`
+                                        : ''
+                                }`}
+                                onClick={() => {
+                                    if (msg.type === 'received') {
+                                        handleMessageClick(msg.text);
+                                    } else if (msg.type === 'sent' && msg.correctionData) {
+                                        setSelectedCorrection(msg.correctionData);
+                                    }
+                                }}
+                            >
                                 <div className="message-text-wrapper">
                                     <div className="message-text">
                                       {msg.text}
                                     </div>
                                     <div className="message-time">{msg.time}</div>
                                 </div>
-                                {msg.type === 'sent' && msg.correctionData && (
-                                    <button className={`grammar-icon-btn ${msg.correctionData.errorType}`} onClick={(e) => { e.stopPropagation(); setSelectedCorrection(msg.correctionData!); }}>
-                                        {renderGrammarIcon(msg.correctionData)}
-                                    </button>
-                                )}
                             </div>
                         </div>
                     ))}
