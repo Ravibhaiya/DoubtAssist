@@ -3,12 +3,22 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { startConversation } from '@/ai/flows/startConversationFlow';
-import { continueConversation, type ContinueConversationInput } from '@/ai/flows/continueConversationFlow';
+import { continueConversation } from '@/ai/flows/continueConversationFlow';
+import { explainText, type ExplainTextOutput } from '@/ai/flows/explainTextFlow';
+import { TextExplainerOverlay } from '@/components/feature/text-explainer-overlay';
 
 interface Message {
     text: string;
     isSent: boolean;
     time: string;
+}
+
+interface ExplainerState {
+  isOpen: boolean;
+  word: string | null;
+  sentence: string | null;
+  data: ExplainTextOutput | null;
+  isLoading: boolean;
 }
 
 function getCurrentTime() {
@@ -26,6 +36,13 @@ export default function TwilightMessengerPage() {
     const [isTyping, setIsTyping] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [explainerState, setExplainerState] = useState<ExplainerState>({
+      isOpen: false,
+      word: null,
+      sentence: null,
+      data: null,
+      isLoading: false,
+    });
     
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
@@ -71,14 +88,33 @@ export default function TwilightMessengerPage() {
         }
     }, [showSuccess]);
 
+    useEffect(() => {
+        if (explainerState.isOpen && explainerState.word && explainerState.sentence && explainerState.isLoading) {
+            const getExplanation = async () => {
+                try {
+                    const result = await explainText({
+                        textToExplain: explainerState.word!,
+                        contextSentence: explainerState.sentence!,
+                    });
+                    setExplainerState(prev => ({ ...prev, data: result, isLoading: false }));
+                } catch (error) {
+                    console.error("Error explaining text:", error);
+                    setExplainerState(prev => ({ ...prev, isLoading: false })); // Consider showing an error toast
+                }
+            };
+            getExplanation();
+        }
+    }, [explainerState.isOpen, explainerState.word, explainerState.sentence, explainerState.isLoading]);
+
+
     const addMessage = (text: string, isSent: boolean) => {
         setMessages(prev => [...prev, { text, isSent, time: getCurrentTime() }]);
     };
 
-    const getAIResponse = async (userMessage: string, currentHistory: Message[]) => {
+    const getAIResponse = async (userMessage: string) => {
         setIsTyping(true);
         
-        const historyForFlow = currentHistory.map(msg => ({
+        const historyForFlow = messages.map(msg => ({
             role: msg.isSent ? 'user' : 'model' as 'user' | 'model',
             text: msg.text,
         }));
@@ -108,14 +144,12 @@ export default function TwilightMessengerPage() {
             setIsSending(true);
             setShowSuccess(true);
             
-            const currentHistory = [...messages]; // Capture history BEFORE adding the new message
             addMessage(text, true);
             setInputValue('');
             
-            // Short delay to allow "sent" animation to be seen
             setTimeout(() => {
                 setIsSending(false);
-                getAIResponse(text, currentHistory);
+                getAIResponse(text);
             }, 200);
         }
     };
@@ -125,6 +159,19 @@ export default function TwilightMessengerPage() {
             e.preventDefault();
             sendMessage();
         }
+    };
+
+    const handleWordClick = (word: string, sentence: string) => {
+        const cleanedWord = word.replace(/[.,!?"“”;:]/g, '').trim().toLowerCase();
+        if (!cleanedWord || !/^[a-z']+$/.test(cleanedWord)) return; // Only trigger for actual words
+    
+        setExplainerState({
+            isOpen: true,
+            word: cleanedWord,
+            sentence: sentence,
+            data: null,
+            isLoading: true,
+        });
     };
 
     return (
@@ -150,7 +197,20 @@ export default function TwilightMessengerPage() {
                         {messages.map((msg, index) => (
                             <div key={index} className={`message ${msg.isSent ? 'sent' : 'received'}`}>
                                 <div className="message-bubble">
-                                    <p style={{ margin: 0, padding: 0 }}>{msg.text}</p>
+                                    <p style={{ margin: 0, padding: 0 }}>
+                                      {msg.isSent 
+                                        ? msg.text 
+                                        : msg.text.split(/(\s+|[.,!?"“”;:](?=\s|$))/).filter(part => part).map((part, i) => (
+                                            <span 
+                                                key={i} 
+                                                className="cursor-pointer hover:bg-accent-color-1/30 rounded-[3px] transition-colors duration-200"
+                                                onClick={() => handleWordClick(part, msg.text)}
+                                            >
+                                                {part}
+                                            </span>
+                                        ))
+                                      }
+                                    </p>
                                     <div className="message-time">{msg.time}</div>
                                 </div>
                             </div>
@@ -188,6 +248,14 @@ export default function TwilightMessengerPage() {
                     </div>
                 </div>
             </div>
+            <TextExplainerOverlay
+                isOpen={explainerState.isOpen}
+                onClose={() => setExplainerState(prev => ({ ...prev, isOpen: false, word: null, sentence: null, data: null }))}
+                word={explainerState.word}
+                sentence={explainerState.sentence}
+                isLoading={explainerState.isLoading}
+                explanationData={explainerState.data}
+            />
         </>
     );
 }
